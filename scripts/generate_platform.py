@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from bdt_mobility.extraction.pipeline import PIPELINE
 from bdt_mobility.extraction.platform.outputs import DynamicPlatformOutputs, PlatformOutput
 from bdt_mobility.utils.paths import PathRegistry
+from bdt_mobility.utils.config import DATA_TAG
 
 PLATFORM_DIR = Path("src/bdt_mobility/extraction/platform")
 DH_STEP_PREFIX = "data-ingestion-step"
@@ -355,7 +356,7 @@ def _gen_ingest(pipeline, fp: str) -> str:
         "    ],",
         '    secrets=["GIT_TOKEN"],',
         "    wait=True,",
-        '    parameters={"labels": "data-ingestion"},',
+        f'    parameters={{"labels": {DATA_TAG!r}}},',
         ")",
         "",
     ]
