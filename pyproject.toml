@@ -15,6 +15,7 @@ dependencies = [
     "contextily>=1.7.0",
     "dash>=3.3.0",
     "digitalhub>=0.15.3",
+    "digitalhub-runtime-hera>=0.15.1",
     "digitalhub-runtime-python>=0.15.2",
     "dsf-suite>=6.0.3",
     "fast-traffic-simulator>=0.2,<0.3",
