@@ -208,3 +208,4 @@ websockets==16.0
 werkzeug==3.1.8
 xyzservices==2026.3.0
 zipp==3.23.1
+bdt-mobility @ git+https://github.com/Gemello-Digitale-Bologna/bdt-mobility.git
