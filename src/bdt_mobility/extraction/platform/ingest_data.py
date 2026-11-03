@@ -97,5 +97,5 @@ workflow.run(
     ],
     secrets=["GIT_TOKEN"],
     wait=True,
-    parameters={"labels": "data-ingestion"},
+    parameters={"labels": 'san_felice'},
 )
