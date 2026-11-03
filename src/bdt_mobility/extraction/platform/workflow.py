@@ -34,7 +34,7 @@ def pipeline():
             S_4 = step(function="data-ingestion-step-4", template=common_template)
             S_5 = step(function="data-ingestion-step-5", template=common_template)
             S_6 = step(function="data-ingestion-step-6", template=common_template)
-            S_7 = step(function="data-ingestion-step-7", template=common_template)
+            #S_7 = step(function="data-ingestion-step-7", template=common_template)
             S_8 = step(function="data-ingestion-step-8", template=common_template)
             S_9 = step(function="data-ingestion-step-9", template=common_template)
             S_10 = step(function="data-ingestion-step-10", template=common_template)
@@ -70,7 +70,6 @@ def pipeline():
                 >> S_4
                 >> S_5
                 >> S_6
-                >> S_7
                 >> S_8
                 >> S_9
                 >> S_10

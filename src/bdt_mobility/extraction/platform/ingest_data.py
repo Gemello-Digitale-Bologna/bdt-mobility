@@ -43,7 +43,7 @@ tuple_step_handler = (
     ("data-ingestion-step-4", f"{base_path}:step_4"),
     ("data-ingestion-step-5", f"{base_path}:step_5"),
     ("data-ingestion-step-6", f"{base_path}:step_6"),
-    ("data-ingestion-step-7", f"{base_path}:step_7"),
+    #("data-ingestion-step-7", f"{base_path}:step_7"),
     ("data-ingestion-step-8", f"{base_path}:step_8"),
     ("data-ingestion-step-9", f"{base_path}:step_9"),
     ("data-ingestion-step-10", f"{base_path}:step_10"),

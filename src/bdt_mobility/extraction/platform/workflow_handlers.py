@@ -160,9 +160,9 @@ def step_7(
     labels: list[str] | str | None = None,
 ) -> None:
     context.logger.info("Executing: bdt_mobility.modules.transport.extraction.step_07_get_tpm_metrics")
-    _exec_main("bdt_mobility.modules.transport.extraction.step_07_get_tpm_metrics")
-    d1 = project.log_dataitem('pt_metrics_per_zone', kind='table', source=str(PathRegistry.PT_METRICS_PER_ZONE))
-    _tag_list([d1], labels)
+    # _exec_main("bdt_mobility.modules.transport.extraction.step_07_get_tpm_metrics")
+    # d1 = project.log_dataitem('pt_metrics_per_zone', kind='table', source=str(PathRegistry.PT_METRICS_PER_ZONE))
+    # _tag_list([d1], labels)
 
 # Step 8: bdt_mobility.modules.transport.extraction.step_08_emissions_preprocess
 @handler(outputs=['cars_joint_by_comune', 'poll_ef', 'co2_ef', 'euro_class_split'])
