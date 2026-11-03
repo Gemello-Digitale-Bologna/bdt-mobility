@@ -162,6 +162,7 @@ dependencies = [
     { name = "contextily" },
     { name = "dash" },
     { name = "digitalhub" },
+    { name = "digitalhub-runtime-hera" },
     { name = "digitalhub-runtime-python" },
     { name = "dsf-suite" },
     { name = "fast-traffic-simulator" },
@@ -196,6 +197,7 @@ requires-dist = [
     { name = "contextily", specifier = ">=1.7.0" },
     { name = "dash", specifier = ">=3.3.0" },
     { name = "digitalhub", specifier = ">=0.15.3" },
+    { name = "digitalhub-runtime-hera", specifier = ">=0.15.1" },
     { name = "digitalhub-runtime-python", specifier = ">=0.15.2" },
     { name = "dsf-suite", specifier = ">=6.0.3" },
     { name = "fast-traffic-simulator", specifier = ">=0.2,<0.3" },
@@ -592,6 +594,18 @@ full = [
     { name = "mlcroissant" },
     { name = "pandas" },
     { name = "polars" },
+]
+
+[[package]]
+name = "digitalhub-runtime-hera"
+version = "0.15.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "digitalhub", extra = ["full"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a2/85/ec5373792fe0da62f1622ede56d37a1cd8771b3b4caa69a9c32d782042c9/digitalhub_runtime_hera-0.15.1.tar.gz", hash = "sha256:d1ca510ae531907b41dfaff6cec0f0d231c3853839dfde096be6e65c162d5815", size = 27280, upload-time = "2026-06-11T09:21:04.67Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/17/c3/77abe07c0eab112963378b521de7fe8cfe88fa467010827ab9cf8ecc850a/digitalhub_runtime_hera-0.15.1-py3-none-any.whl", hash = "sha256:bc89d024f68e6d1af51a45ae432910c0987249b14fa7b8feee98c4a28ef5c985", size = 39930, upload-time = "2026-06-11T09:21:03.423Z" },
 ]
 
 [[package]]
@@ -1829,7 +1843,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess" },
+    { name = "ptyprocess", marker = "sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
