@@ -1,4 +1,4 @@
 from __future__ import annotations
 
 PROJECT_NAME = "mobility"
-TAG_GITHUB = "main"
+TAG_GITHUB = "test/ingestion-pipeline"
