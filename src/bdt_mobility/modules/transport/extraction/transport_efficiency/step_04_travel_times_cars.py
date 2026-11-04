@@ -117,9 +117,7 @@ def compute_travel_time_matrix(hex_ids,
       
   return tt_car
 
-def main(
-    ctx: dict
-):
+def main():
   logging.basicConfig(level=logging_level)
   with timed():
     logging.info(f"Reading relevant input data")
@@ -139,5 +137,4 @@ def main(
     travel_times_car_df.to_parquet(PathRegistry.TRAVEL_TIMES_CAR, engine='pyarrow', index=True)
   
 if __name__ == "__main__":
-  
-  main(ctx=context)
+  main()

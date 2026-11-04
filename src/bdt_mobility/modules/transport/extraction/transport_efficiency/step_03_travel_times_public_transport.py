@@ -407,7 +407,7 @@ def compute_travel_times(hex_ids: list,
       
       
 def main(
-  ctx: dict
+  ctx: dict = context
 ):
   logging.basicConfig(level=logging_level)
   with timed():

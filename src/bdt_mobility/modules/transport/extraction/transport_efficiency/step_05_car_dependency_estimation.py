@@ -46,8 +46,7 @@ def getOpportunityScores(tt_matrix, poi_counts, hex_ids,
  
   return scores
 
-def main(
-):
+def main():
   logging.basicConfig(level=logging_level)
   with timed():
     logging.info(f"Reading relevant input data")

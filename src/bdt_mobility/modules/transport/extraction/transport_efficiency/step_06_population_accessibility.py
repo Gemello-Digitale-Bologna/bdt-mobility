@@ -75,7 +75,7 @@ def compute_population_score_vectorized(tt_matrix, pop_array, tau: int = 1800, t
     return scores
 
 
-def main(ctx: dict):
+def main(ctx: dict = context):
     """
     Main pipeline:
       1. Loads hexagon grid, centroids, and population array.

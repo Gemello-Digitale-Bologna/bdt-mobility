@@ -157,7 +157,7 @@ def populationMapping(hex_ids, gdf_areas_m, gdf_hex_m, gdf_res_m):
 
 
 def main(
-    ctx: dict
+    ctx: dict = context
 ):
     """
     Main pipeline:

@@ -45,9 +45,7 @@ def classify_poi(row: pd.Series, osm_to_municipal: dict) -> tuple:
   return (None, None, None)
 
 
-def main(
-  ctx: dict
-):
+def main():
   logging.basicConfig(level=logging_level)
   start_time = time.time()
   start_dt = datetime.now()
@@ -106,4 +104,4 @@ def main(
 
 if __name__ == "__main__":
   
-    main(ctx = context)
+    main()

@@ -345,7 +345,7 @@ def apply_gtfs_modifications(gtfs_original: Path,
 
 # ── Main ──────────────────────────────────────────────────────
 def main(
-  ctx: dict
+  ctx: dict = context
 ):
     """Complete pipeline: diagnose → modify GTFS → recompute → compare."""
     logging.basicConfig(level=logging_level)
