@@ -110,7 +110,7 @@ def poiAssignment(gdf_poi: gpd.GeoDataFrame, h3_resolution : int)-> gpd.GeoDataF
 
 
 def main(
-  ctx: dict         
+  ctx: dict = context       
 ):
   """
   Builds the H3 grid, assigns POIs to hexagons, and saves all outputs.

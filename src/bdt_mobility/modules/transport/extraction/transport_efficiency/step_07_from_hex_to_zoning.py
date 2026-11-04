@@ -252,9 +252,7 @@ def aggregate_to_zones(joined_hex_zone: pd.DataFrame,
     logging.info(f"Aggregated to {len(gdf_result):,} zones")
     return gdf_result
 
-def main(
-    ctx: dict
-):
+def main():
         
     logging.basicConfig(level=logging_level)
     with timed():
@@ -298,4 +296,4 @@ def main(
   
 if __name__ == "__main__":
     
-    main(ctx=context)
+    main()
