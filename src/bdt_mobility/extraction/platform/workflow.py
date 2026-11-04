@@ -42,7 +42,18 @@ def pipeline():
             S_12 = step(function="data-ingestion-step-12", template=common_template)
             S_13 = step(function="data-ingestion-step-13", template=common_template)
             S_14 = step(function="data-ingestion-step-14", template=common_template)
-            S_15 = step(function="data-ingestion-step-15", template=common_template)
+            S_15 = step(function="data-ingestion-step-15", template=dict(
+                action="job",
+                secrets=["GIT_TOKEN"],
+                envs=[
+                    {"name": "PYTHONPATH", "value": "$PYTHONPATH:."},
+                    {"name": "BDT_DATA_ROOT", "value": "/mnt/data"},
+                ],
+                resources={"mem": "24Gi", "cpu": "3", "disk": "10Gi"},
+                parameters={
+                    "labels": "{{workflow.parameters.labels}}",
+                },
+            ))
             S_16 = step(function="data-ingestion-step-16", template=common_template)
             S_17 = step(function="data-ingestion-step-17", template=common_template)
             S_18 = step(function="data-ingestion-step-18", template=common_template)
