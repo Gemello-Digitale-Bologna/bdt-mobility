@@ -43,11 +43,11 @@ params_median_postpone = "Median time of postponing (in hours)"
 params_pt_frequency = "Frequency variation of LPT (in %)"
 params_pt_capillarity = "Capillarity variation of LPT (in %)"
 params_pt_cost = "Cost variation of LPT (in %)"
-params_pt_time = "LPT-drive time penalty variation (in %)"
+params_pt_time = "Drive-LPT time penalty variation (in %)"
 params_behavior_capillarity = "Importance of capillarity of LPT"
 params_behavior_frequency = "Importance of frequency of LPT"
 params_behavior_cost = "Importance of cost of LPT"
-params_behavior_time = "Importance of LPT-drive time penalty"
+params_behavior_time = "Importance of drive-LPT time penalty"
 
 # ===========================================================================
 # Section headers

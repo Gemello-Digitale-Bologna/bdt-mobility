@@ -45,7 +45,7 @@ i_b_p50_postponement = Index("postponement distribution 50% threshold", 0.50)
 i_b_pt_capillarity = Index("importance level of capillarity of the pt", 4.5)
 i_b_pt_frequency = Index("importance level of frequency per stop of the pt", -1.45)
 i_b_pt_cost = Index("importance level of the cost of the pt", -0.30)
-i_b_pt_time = Index("importance level of the time difference of the car and pt", -0.034)
+i_b_pt_time = Index("importance level of the time difference of the car and pt", 0.034)
 
 behavioral_params = {
     "i_b_p50_cost": i_b_p50_cost,

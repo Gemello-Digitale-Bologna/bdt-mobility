@@ -22,6 +22,8 @@ dataitems = {
         f"geo_nodes_{YEAR}", 
         f"geo_edges_{YEAR}", 
         f"ltz_boundary_{YEAR}",
+        f"geo_nodes_prov_{YEAR}", 
+        f"geo_edges_prov_{YEAR}", 
         "comuni_01012023",
         f"poi_bologna_{YEAR}",
         f"buildings_bologna_{YEAR}",

@@ -72,15 +72,15 @@ def build_overrides(ui_values):
 
         if "type" in p and p["type"] == "Time":
             if isinstance(p["id"], DistributionIndex):
-                loc, scale = value
-                overrides[id] = stats.uniform(loc=to_number(loc), scale=to_number(scale))
+                lo, hi = to_number(value[0]), to_number(value[1])
+                overrides[id] = stats.uniform(loc=lo, scale=hi - lo)
             else:
                 overrides[id] = to_number(value)
 
         else:
             if isinstance(p["id"], DistributionIndex):
-                loc, scale = value
-                overrides[id] = stats.uniform(loc=loc, scale=scale)
+                lo, hi = value
+                overrides[id] = stats.uniform(loc=lo, scale=hi - lo)
             else:
                 overrides[id] = value
 
@@ -137,8 +137,9 @@ def _build_params():
         {"name": t("params_behavior"),
          "params": [
              {'id': m.I_B_p50_cost, 'label': t("params_acceptable_cost"),
-              'value': (m.I_B_p50_cost.params["loc"], m.I_B_p50_cost.params["scale"]),
-              'min': 0.0, 'max': 10.0, 'step': 0.25},
+              'value': (m.I_B_p50_cost.params["loc"],
+                        m.I_B_p50_cost.params["loc"] + m.I_B_p50_cost.params["scale"]),
+              'min': 0.0, 'max': 15.0, 'step': 0.25},
              {'id': m.I_B_p50_anticipating, 'label': t("params_propensity_forward"),
               'value': m.I_B_p50_anticipating.concrete_default,
               'min': 0.0, 'max': 6.0, 'step': 0.10},
@@ -179,7 +180,7 @@ def _build_params():
               'min': -1.0, 'max': 0.0, 'step': 0.05},
              {'id': m.I_B_pt_time, 'label': t("params_behavior_time"),
               'value': m.I_B_pt_time.concrete_default,
-              'min': -0.1, 'max': 0.0, 'step': 0.01} ])
+              'min': 0.0, 'max': 0.1, 'step': 0.01} ])
          },
     ]
 

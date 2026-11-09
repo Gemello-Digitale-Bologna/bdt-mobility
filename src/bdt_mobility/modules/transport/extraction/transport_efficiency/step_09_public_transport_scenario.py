@@ -70,12 +70,7 @@ from bdt_mobility.modules.transport.extraction.transport_efficiency.step_07_from
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-import matplotlib.cm as cm
 from pathlib import Path
-import zipfile
-import tempfile
 
 # ── PT Coverage Analysis ──────────────────────────────────────
 def analyze_pt_coverage(tt_pt: pd.DataFrame,
@@ -347,164 +342,6 @@ def apply_gtfs_modifications(gtfs_original: Path,
     calendar_df.to_csv(output_path / "calendar.txt", index=False)
 
 
-# ── Test functions ────────────────────────────────────────────
-def test_gtfs_modifications(gtfs_original: Path, gtfs_scenario: Path) -> None:
-    """
-    Quick validation that the modified GTFS is structurally sound.
-    """
-    logging.info("Testing modified GTFS integrity...")
-    
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
-        with zipfile.ZipFile(gtfs_scenario, 'r') as z:
-            z.extractall(tmpdir)
-        
-        stops_df = pd.read_csv(tmpdir / "stops.txt", dtype={"stop_id": str})
-        routes_df = pd.read_csv(tmpdir / "routes.txt", dtype={"route_id": str})
-        trips_df = pd.read_csv(tmpdir / "trips.txt", dtype={"trip_id": str, "route_id": str})
-        stop_times_df = pd.read_csv(tmpdir / "stop_times.txt", dtype={"trip_id": str, "stop_id": str})
-        
-        # Validation checks
-        checks = {
-            "No duplicate stop_ids": len(stops_df) == len(stops_df["stop_id"].unique()),
-            "No duplicate trip_ids": len(trips_df) == len(trips_df["trip_id"].unique()),
-            "No duplicate route_ids": len(routes_df) == len(routes_df["route_id"].unique()),
-            "All stop_times reference existing stops": 
-                stop_times_df["stop_id"].isin(stops_df["stop_id"]).all(),
-            "All trips reference existing routes": 
-                trips_df["route_id"].isin(routes_df["route_id"]).all(),
-            "All stop_times reference existing trips": 
-                stop_times_df["trip_id"].isin(trips_df["trip_id"]).all(),
-        }
-        
-        all_passed = True
-        for check_name, result in checks.items():
-            status = "✓" if result else "✗"
-            logging.info(f"  {status} {check_name}")
-            if not result:
-                all_passed = False
-        
-        if all_passed:
-            logging.info("All integrity checks passed!")
-        else:
-            logging.error("Some integrity checks failed!")
-            raise ValueError("Modified GTFS has integrity issues")
-
-def survival_function(t_sec: np.ndarray, tau: int):
-    """f(t) = (1/τ) * exp(-t/τ)"""
-    return (1 / tau) * np.exp(-t_sec / tau)
-
-# ── Calculate CDI from travel times ──────────────────────────
-def compute_opportunity_scores(tt_car_df: pd.DataFrame,
-                               tt_pt: pd.DataFrame | np.ndarray,
-                               poi_counts: pd.Series,
-                               tau_sec: float,
-                               dt: float) -> tuple:
-    """
-    Computes opportunity scores and CDI from travel time DataFrames.
-    
-    Parameters
-    ----------
-    tt_car_df : pd.DataFrame
-        Car travel times (N×N, seconds), index and columns are hex_ids
-    tt_pt_df : pd.DataFrame
-        PT travel times (N×N, seconds), index and columns are hex_ids
-    poi_counts : pd.Series
-        POI count per hex (indexed by hex_id)
-    tau_sec : float
-        Decay parameter in seconds
-    
-    Returns
-    -------
-    (scores_car, scores_pt, cdi) as np.arrays
-    """
-    tt_car = tt_car_df.values
-    if isinstance(tt_pt, pd.DataFrame):
-      tt_pt = tt_pt.values
-    else:
-      tt_pt = tt_pt
-    poi_counts_arr = poi_counts.values
-    N = len(poi_counts)
-    
-    valid_car = (~np.isnan(tt_car)) & (tt_car > 0)
-    valid_pt = (~np.isnan(tt_pt)) & (tt_pt > 0)
-    
-    scores_car = np.zeros(N)
-    scores_pt = np.zeros(N)
-    
-    for i in range(N):
-        if poi_counts_arr[i] > 0:
-            weights_car = np.where(
-                valid_car[i, :],
-                poi_counts_arr[i] * survival_function(tt_car[i, :], tau_sec) * dt,
-                0.0
-            )
-            weights_pt = np.where(
-                valid_pt[i, :],
-                poi_counts_arr[i] * survival_function(tt_pt[i, :], tau_sec) * dt,
-                0.0
-            )
-            scores_car[i] = weights_car.sum()
-            scores_pt[i] = weights_pt.sum()
-    
-    denom = scores_car + scores_pt
-    cdi = np.where(denom > 0, (scores_car - scores_pt) / denom, np.nan)
-    
-    return scores_car, scores_pt, cdi
-
-
-# ── Plotting ──────────────────────────────────────────────────
-def plot_cdi_comparison(baseline_cdi: np.ndarray,
-                        scenario_cdi: np.ndarray,
-                        gdf_hex: gpd.GeoDataFrame,
-                        output_path: Path) -> None:
-    """
-    Plots side-by-side CDI maps: baseline vs scenario.
-    """
-    gdf_hex_m = gdf_hex.to_crs(epsg=32632)
-    minx, miny, maxx, maxy = gdf_hex_m.total_bounds
-
-    gdf_hex_m["cdi_baseline"] = baseline_cdi
-    gdf_hex_m["cdi_scenario"] = scenario_cdi
-    gdf_hex_m["cdi_delta"] = scenario_cdi - baseline_cdi
-
-    fig, axes = plt.subplots(1, 3, figsize=(22, 8))
-    fig.suptitle("CDI Comparison: Baseline vs PT Enhancement Scenario", fontsize=14, fontweight="bold")
-
-    norm = mcolors.TwoSlopeNorm(vmin=-1, vcenter=0, vmax=1)
-
-    for ax, col, title in [
-        (axes[0], "cdi_baseline", "Baseline CDI"),
-        (axes[1], "cdi_scenario", "Scenario CDI"),
-        (axes[2], "cdi_delta", "Delta CDI (improvement)"),
-    ]:
-        gdf_hex_m[gdf_hex_m[col].isna()].plot(ax=ax, color="#d0d0d0", linewidth=0.1, edgecolor="white")
-        valid = gdf_hex_m[gdf_hex_m[col].notna()]
-
-        if col == "cdi_delta":
-            norm_delta = mcolors.Normalize(vmin=valid[col].min(), vmax=0)
-            valid.plot(ax=ax, column=col, cmap="Greens", norm=norm_delta,
-                      linewidth=0.15, edgecolor="white", legend=False)
-            sm = cm.ScalarMappable(cmap="Greens", norm=norm_delta)
-        else:
-            valid.plot(ax=ax, column=col, cmap="RdBu_r", norm=norm,
-                      linewidth=0.15, edgecolor="white", legend=False)
-            sm = cm.ScalarMappable(cmap="RdBu_r", norm=norm)
-
-        sm.set_array([])
-        cbar = fig.colorbar(sm, ax=ax, fraction=0.035, pad=0.02, shrink=0.75)
-        cbar.set_label("CDI" if col != "cdi_delta" else "Δ CDI", fontsize=9)
-
-        ax.set_xlim(minx, maxx)
-        ax.set_ylim(miny, maxy)
-        ax.set_title(title, fontsize=11)
-        ax.axis("off")
-
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close()
-    logging.info(f"Saved: {output_path}")
-
 
 # ── Main ──────────────────────────────────────────────────────
 def main(
@@ -649,36 +486,6 @@ def main(
       # Save results
       gdf_zones_result_scenario.to_parquet(PathRegistry.PT_SCENARIO_CDI_IMPACT)
       logging.info(f"Saved: {PathRegistry.PT_SCENARIO_CDI_IMPACT}")
-
-"""
-      # Report
-      logging.info("\n" + "="*70)
-      logging.info("SCENARIO SUMMARY")
-      logging.info("="*70)
-      logging.info(f"\nBaseline PT Coverage:")
-      logging.info(f"  Mean: {coverage_df['coverage_pct'].mean():.1%}")
-      logging.info(f"  Min: {coverage_df['coverage_pct'].min():.1%}")
-      logging.info(f"  Max: {coverage_df['coverage_pct'].max():.1%}")
-
-      logging.info(f"\nCDI Change (Baseline → Scenario):")
-      logging.info(f"  Mean CDI baseline: {cdi_baseline[~np.isnan(cdi_baseline)].mean():.4f}")
-      logging.info(f"  Mean CDI scenario: {cdi_scenario[~np.isnan(cdi_scenario)].mean():.4f}")
-      logging.info(f"  Mean delta CDI: {(cdi_scenario - cdi_baseline)[~np.isnan(cdi_baseline)].mean():.4f}")
-
-      logging.info(f"\nZone-Level Impact:")
-      logging.info(f"  Zones with CDI reduction: {(comparison_df['delta_cdi'] < 0).sum()}/{len(comparison_df)}")
-      logging.info(f"  Mean CDI reduction: {comparison_df[comparison_df['delta_cdi'] < 0]['delta_cdi'].mean():.4f}")
-
-      top_impact = comparison_df.nsmallest(5, "delta_cdi")[
-          ["zone_id", "cdi_mean_baseline", "cdi_mean_scenario", "delta_cdi"]
-      ]
-      logging.info(f"\nTop 5 zones for CDI reduction:")
-      for idx, row in top_impact.iterrows():
-          logging.info(
-              f"  Zone {row['zone_id']:2.0f}: {row['cdi_mean_baseline']:.4f} → "
-              f"{row['cdi_mean_scenario']:.4f} (Δ {row['delta_cdi']:.4f})"
-          )
-"""
 
 
 if __name__ == "__main__":

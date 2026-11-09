@@ -43,11 +43,11 @@ params_median_postpone = "Tempo mediano mediano posticipo (in ore)"
 params_pt_frequency = "Modifica % della frequenza del TPM"
 params_pt_capillarity = "Modifica % della capillarit\u00e0 del TPM"
 params_pt_cost = "Modifica % della tariffa del TPM"
-params_pt_time = "Modifica % della differenza temporale TPM-auto"
+params_pt_time = "Modifica % della differenza temporale auto-TPM"
 params_behavior_capillarity = "Livello di importanza della capillat\u00e0 del TPM"
 params_behavior_frequency = "Livello di importanza della frequenza del TPM"
 params_behavior_cost = "Livello di importanza del costo del TPM"
-params_behavior_time = "Livello di importanza della differenza temporale TPM-auto"
+params_behavior_time = "Livello di importanza della differenza temporale auto-TPM"
 
 # ===========================================================================
 # Section headers

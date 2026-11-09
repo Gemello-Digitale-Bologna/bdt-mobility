@@ -32,20 +32,20 @@ def _zone_values(evals, index, zone):
 
 EXPECTED_KPIS = {
     "Base inflow [veh/day]": 178696,
-    "Mode-shifted inflow [veh/day]": 11682,
-    "Inflow difference [veh/day]": -37033,
-    "Lost inflow [veh/day]": 25341,
-    "Modified inflow [veh/day]": 141663,
-    "Time-shifted inflow [veh/day]": 5841,
+    "Mode-shifted inflow [veh/day]": 11134,
+    "Inflow difference [veh/day]": -36631,
+    "Lost inflow [veh/day]": 25488,
+    "Modified inflow [veh/day]": 142065,
+    "Time-shifted inflow [veh/day]": 5870,
     "Base traffic [max veh]": 15095,
-    "Modified traffic [max veh]": 13805,
-    "Traffic difference [max veh]": -1290,
-    "Paying inflow [veh/day]": 72861,
+    "Modified traffic [max veh]": 13815,
+    "Traffic difference [max veh]": -1280,
+    "Paying inflow [veh/day]": 73234,
     "Average cost [€/day]": 3.91,
-    "Collected fees [€/day]": 285121,
-    "Base emissions [NOx gr/day]": 1072598,
-    "Emissions [NOx gr/day]": 997417,
-    "Emissions difference [NOx gr/day]": -75181,
+    "Collected fees [€/day]": 286583.68,
+    "Base emissions [NOx gr/day]": 1072659,
+    "Emissions [NOx gr/day]": 998184,
+    "Emissions difference [NOx gr/day]": -74475,
 }
 
 
