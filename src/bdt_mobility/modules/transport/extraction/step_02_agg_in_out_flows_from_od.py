@@ -86,12 +86,21 @@ def get_start_flows_from_od(
 ):
     # Aggregate flows based on ZOI intersections
     od_merge = od.merge(
-            aree_gdf[['id_zone', 'type_zoi']].rename(columns={'id_zone': 'from', 'type_zoi': 'type_zoi_from'}),
+            aree_gdf.rename(columns={'id_zone': 'from', 'type_zoi': 'type_zoi_from', 'perc_area': 'from_perc_area'}),
             on='from', 
-            how='left')
-    
+            how='left'
+        ).merge(
+            aree_gdf.rename(columns={'id_zone': 'to', 'type_zoi': 'type_zoi_to', 'perc_area': 'to_perc_area'}), 
+            on='to', 
+            how='left'
+        )
+    od_merge['flow'] = od_merge['flow'] * od_merge['from_perc_area'] * od_merge['to_perc_area']
+
+    # Keep only the flows directed towards the ZOI
+    od_merge = od_merge[od_merge['type_zoi_to'] == "inside"]
+
     df_start_flows = od_merge.groupby(['from','type_zoi_from'])['flow'].sum().reset_index()
-    logging.debug(f"- intra and inter flows in ZOI:\n{df_start_flows}")
+    logging.debug(f"- flows to ZOI:\n{df_start_flows}")
 
     return df_start_flows
 

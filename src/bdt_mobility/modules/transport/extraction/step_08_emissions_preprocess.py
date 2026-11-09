@@ -446,7 +446,7 @@ def get_euro_class_split():
         .agg(pl.col("len").sum().alias("count"))
         .sort("euro_level")
     )
-    total = cars_distrib_prov.select(pl.col("len").sum()).item()
+    total = euro_counts.select(pl.col("count").sum()).item()
     return (
         euro_counts
         .with_columns((pl.col("count") / total).alias("prop"))
