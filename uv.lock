@@ -170,6 +170,7 @@ dependencies = [
     { name = "folium" },
     { name = "geopandas" },
     { name = "h3" },
+    { name = "hera" },
     { name = "holidays" },
     { name = "lxml" },
     { name = "neatnet" },
@@ -205,6 +206,7 @@ requires-dist = [
     { name = "folium", specifier = ">=0.20.0" },
     { name = "geopandas", specifier = ">=1.1.1" },
     { name = "h3", specifier = ">=4.4.2" },
+    { name = "hera", specifier = ">=7.2.0" },
     { name = "holidays", specifier = ">=0.87" },
     { name = "lxml", specifier = ">=6.0.2" },
     { name = "neatnet", specifier = ">=0.1.5" },
@@ -912,6 +914,20 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/9d/ea/7aa732f2c8b4bdabe3c5ab36a58149963fd1bf1d556e976a3fbea35def2d/h3-4.4.2-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:06267484978c7df7d8e675dfab660967387f9ef154c7452ae38b578d80641445", size = 1030677, upload-time = "2026-01-29T19:22:20.534Z" },
     { url = "https://files.pythonhosted.org/packages/f8/86/b92030c634572b9f5e93a3fa626c68576e4a12e6a99e5117f85cc7b7fbd9/h3-4.4.2-cp312-cp312-win_amd64.whl", hash = "sha256:8d612b6dc0ccca41fe4bdcfe3b59915c9455aa791db031b49f05d48f243fcc05", size = 787290, upload-time = "2026-01-29T19:22:21.572Z" },
     { url = "https://files.pythonhosted.org/packages/ab/06/895d6489052e50a0eb292507a93f53763bf711a27451312ea2149622f811/h3-4.4.2-cp312-cp312-win_arm64.whl", hash = "sha256:6f1e76252ed43fd58f92fbf29d4d0d0aa9af26b97c31d2ea0a6d38f074f89e78", size = 704310, upload-time = "2026-01-29T19:22:22.595Z" },
+]
+
+[[package]]
+name = "hera"
+version = "7.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/93/a6/dfc9152440deb6416f6136e809040c3b275abcfac3f86ebecb746746c694/hera-7.2.0.tar.gz", hash = "sha256:3a25d57911afd17776061595d5c7e14ae9a6e3779f69f728649ec846ae86d739", size = 308099, upload-time = "2026-11-04T12:27:34.375Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d0/00/44e7fd32125ce46c792a97492e8e6e180eb0eca4cbe9a1aff175b2f4b259/hera-7.2.0-py3-none-any.whl", hash = "sha256:9bd64252f2295938b230c28d2cc26e6ba04f49eb9a67b6d3d075667cde24ee91", size = 357991, upload-time = "2026-11-04T12:27:33.013Z" },
 ]
 
 [[package]]

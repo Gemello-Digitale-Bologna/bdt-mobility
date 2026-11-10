@@ -21,14 +21,14 @@ from bdt_mobility.extraction import step_00_get_input_data
 from bdt_mobility.extraction.pipeline import PIPELINE
 from bdt_mobility.extraction.platform.outputs import DynamicPlatformOutputs
 
-PROJECT = "mobility"
+from bdt_mobility.extraction.config import PROJECT
+from bdt_mobility.utils.config import DATA_TAG
 
 logging.basicConfig(level=logging.INFO)
 
 logging.info("=== step_00: downloading raw inputs ===")
 step_00_get_input_data.main()
 
-project = dh.get_project(PROJECT)
 
 for step in PIPELINE[1:]:
     m = importlib.import_module(step.__name__)
@@ -47,8 +47,18 @@ for step in PIPELINE[1:]:
 
     for out in outputs:
         logging.info("Downloading %r → %s", out.name, out.path)
-        if out.kind == "artifact":
-            entity = project.get_artifact(out.name)
+        items = dh.search_entity(project_name=PROJECT, name=out.name, labels=[DATA_TAG])
+        existing = items[0]
+        
+        if not existing:
+            logging.warning("No entity found with labels %r  for %r", DATA_TAG, out.name)
+            
+            items_all = dh.search_entity(project_name=PROJECT, name=out.name)
+            existing_all = items_all[0]
+            label_set = set()
+            for elem in existing_all:
+                label_set.add(elem.metadata.labels[0])
+            logging.warning("Available labels for %r: %s", out.name, label_set)
+            continue
         else:
-            entity = project.get_dataitem(out.name)
-        entity.download(str(out.path.parent), overwrite=True)
+            existing[-1].download(str(out.path.parent), overwrite=True)
