@@ -23,6 +23,7 @@ dependencies = [
     "folium>=0.20.0",
     "geopandas>=1.1.1",
     "h3>=4.4.2",
+    "hera>=7.2.0",
     "holidays>=0.87",
     "lxml>=6.0.2",
     "neatnet>=0.1.5",
