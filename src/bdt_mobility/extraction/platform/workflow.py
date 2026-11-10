@@ -27,34 +27,34 @@ common_template = dict(
 def pipeline():
     with Workflow(entrypoint="dag", arguments=Parameter(name="labels")) as w:
         with DAG(name="dag"):
-            S_0 = step(function="data-ingestion-step-0", template=common_template)
-            S_1 = step(function="data-ingestion-step-1", template=common_template)
-            S_2 = step(function="data-ingestion-step-2", template=common_template)
-            S_3 = step(function="data-ingestion-step-3", template=common_template)
-            S_4 = step(function="data-ingestion-step-4", template=common_template)
-            S_5 = step(function="data-ingestion-step-5", template=common_template)
-            S_6 = step(function="data-ingestion-step-6", template=common_template)
-            #S_7 = step(function="data-ingestion-step-7", template=common_template)
-            S_8 = step(function="data-ingestion-step-8", template=common_template)
-            S_9 = step(function="data-ingestion-step-9", template=common_template)
-            S_10 = step(function="data-ingestion-step-10", template=common_template)
-            S_11 = step(function="data-ingestion-step-11", template=common_template)
-            S_12 = step(function="data-ingestion-step-12", template=common_template)
-            S_13 = step(function="data-ingestion-step-13", template=common_template)
-            S_14 = step(function="data-ingestion-step-14", template=common_template)
-            S_15 = step(function="data-ingestion-step-15", template=dict(
-                action="job",
-                secrets=["GIT_TOKEN"],
-                envs=[
-                    {"name": "PYTHONPATH", "value": "$PYTHONPATH:."},
-                    {"name": "BDT_DATA_ROOT", "value": "/mnt/data"},
-                ],
-                resources={"mem": "24Gi", "cpu": "3", "disk": "10Gi"},
-                parameters={
-                    "labels": "{{workflow.parameters.labels}}",
-                },
-            ))
-            S_16 = step(function="data-ingestion-step-16", template=common_template)
+            # S_0 = step(function="data-ingestion-step-0", template=common_template)
+            # S_1 = step(function="data-ingestion-step-1", template=common_template)
+            # S_2 = step(function="data-ingestion-step-2", template=common_template)
+            # S_3 = step(function="data-ingestion-step-3", template=common_template)
+            # S_4 = step(function="data-ingestion-step-4", template=common_template)
+            # S_5 = step(function="data-ingestion-step-5", template=common_template)
+            # S_6 = step(function="data-ingestion-step-6", template=common_template)
+            # S_7 = step(function="data-ingestion-step-7", template=common_template)
+            # S_8 = step(function="data-ingestion-step-8", template=common_template)
+            # S_9 = step(function="data-ingestion-step-9", template=common_template)
+            # S_10 = step(function="data-ingestion-step-10", template=common_template)
+            # S_11 = step(function="data-ingestion-step-11", template=common_template)
+            # S_12 = step(function="data-ingestion-step-12", template=common_template)
+            # S_13 = step(function="data-ingestion-step-13", template=common_template)
+            # S_14 = step(function="data-ingestion-step-14", template=common_template)
+            # S_15 = step(function="data-ingestion-step-15", template=dict(
+            #     action="job",
+            #     secrets=["GIT_TOKEN"],
+            #     envs=[
+            #         {"name": "PYTHONPATH", "value": "$PYTHONPATH:."},
+            #         {"name": "BDT_DATA_ROOT", "value": "/mnt/data"},
+            #     ],
+            #     resources={"mem": "24Gi", "cpu": "3", "disk": "10Gi"},
+            #     parameters={
+            #         "labels": "{{workflow.parameters.labels}}",
+            #     },
+            # ))
+            # S_16 = step(function="data-ingestion-step-16", template=common_template)
             S_17 = step(function="data-ingestion-step-17", template=common_template)
             S_18 = step(function="data-ingestion-step-18", template=common_template)
             S_19 = step(function="data-ingestion-step-19", template=common_template)
@@ -74,23 +74,7 @@ def pipeline():
             S_33 = step(function="data-ingestion-step-33", template=common_template)
             S_34 = step(function="data-ingestion-step-34", template=common_template)
             (
-                S_0
-                >> S_1
-                >> S_2
-                >> S_3
-                >> S_4
-                >> S_5
-                >> S_6
-                >> S_8
-                >> S_9
-                >> S_10
-                >> S_11
-                >> S_12
-                >> S_13
-                >> S_14
-                >> S_15
-                >> S_16
-                >> S_17
+                S_17
                 >> S_18
                 >> S_19
                 >> S_20
