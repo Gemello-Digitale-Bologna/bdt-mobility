@@ -84,9 +84,6 @@ dataitems = {
 
 def download_dataitem(name, path):
     dataitem = dh.get_dataitem(name, PROJECT_NAME)
-    files = dataitem.files
-    if isinstance(files, dict):
-        files = files["content"]
     dataitem_path = dataitem.spec.path
     if dataitem_path.endswith("/"):  # Download multiple files in a directory with the name as `name`
         new_filename = dataitem.download(path, overwrite=True)
