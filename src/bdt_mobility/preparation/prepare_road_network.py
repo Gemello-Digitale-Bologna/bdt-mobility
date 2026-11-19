@@ -3,8 +3,9 @@ import pandas as pd
 import geopandas as gpd
 import networkx as nx
 import osmnx as ox
+from shapely.ops import unary_union
 
-from bdt_mobility.utils.constants import CRS_LATLONG
+from bdt_mobility.utils.constants import CRS_LATLONG, CRS_PROJECTED
 from bdt_mobility.utils.config import logging, logging_level
 from bdt_mobility.utils import data_reader
 from bdt_mobility.utils.config import ROOT_PATH
@@ -110,10 +111,17 @@ def main():
     logging.basicConfig(level=logging_level)
 
     logging.info("Loading data...")
-    # Loading data
+    # Loading ZOI data
     filename = dh.get_dataitem(identifier="zoi_manual_border", project=PROJECT).as_file()
     zoi = data_reader.ZOI_shape(filename)
     zoi.geometry = zoi.buffer(3000)
+
+    # Loading province boundary (proxy)
+    filename_comuni = dh.get_dataitem(identifier="comuni_01012023", project="mobility").as_file()
+    comuni = gpd.read_file(filename_comuni).to_crs(CRS_PROJECTED)
+    comuni = comuni[comuni["COD_PROV"]==37]
+    c_hull_comuni = unary_union(comuni.geometry).convex_hull.buffer(10000)
+    geo_hull_comuni = gpd.GeoDataFrame({"geometry": [c_hull_comuni] }, crs=CRS_PROJECTED).to_crs(CRS_LATLONG)
 
     logging.info("Extracting road network...")
     # Extracting road network
@@ -133,6 +141,10 @@ def main():
     logging.info("Extracting the Limited-Traffic-Zone boundary...")
     # Use OSMNX to extract the LTX boundary
     ltx_gdf = _extract_osmnx_ltx_data(df_bzoi=zoi, date=DATE)
+
+    logging.info("Extracting the road network within the Bologna Province...")
+    G_rn_prov = _extract_osmnx_graph(df_bzoi=geo_hull_comuni, relevant_highway=False, date=DATE)
+    nodes_prov, edges_prov = ox.graph_to_gdfs(G_rn_prov)
 
     logging.info("Saving data...")
     
@@ -157,6 +169,19 @@ def main():
     ltx_gdf.to_parquet(ROAD_NETWORK_PATH / f"ltz_boundary_{YEAR}.parquet", index=False)
     # dh.log_dataitem(project=PROJECT, name=f"ltz_boundary_{YEAR}", data=ltx_gdf, kind="table")
 
+    edges_prov = edges_prov.reset_index()
+    geometry_wkt = edges_prov['geometry'].to_wkt()
+    edges_prov = pd.DataFrame(edges_prov.drop(columns='geometry'))
+    edges_prov['geometry'] = geometry_wkt
+    edges_prov.to_parquet(ROAD_NETWORK_PATH / f"geo_edges_prov_{YEAR}.parquet", index=False)
+    # dh.log_dataitem(project=PROJECT, name=f"geo_edges_prov_{YEAR}", data=edges, kind="table")
+
+    nodes_prov = nodes_prov.reset_index()
+    geometry_wkt = nodes_prov['geometry'].to_wkt()
+    nodes_prov = pd.DataFrame(nodes_prov.drop(columns='geometry'))
+    nodes_prov['geometry'] = geometry_wkt
+    nodes_prov.to_parquet(ROAD_NETWORK_PATH / f"geo_nodes_prov_{YEAR}.parquet", index=False)
+    # dh.log_dataitem(project=PROJECT, name=f"geo_nodes_prov_{YEAR}", data=nodes, kind="table")
 
 if __name__ == "__main__":
     main()

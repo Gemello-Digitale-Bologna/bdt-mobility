@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from bdt_mobility.utils import data_reader
-from bdt_mobility.modules.transport.extraction import road_network
 from bdt_mobility.utils.constants import CRS_LATLONG, CRS_PROJECTED
 
 from bdt_mobility.utils.paths import PathRegistry
@@ -234,6 +233,11 @@ def compute_frequency(DO_PLOT):
 def compute_capillarity(DO_PLOT):
     '''
     '''
+    logging.debug("Reading and preparing the input data")
+    comuni = gpd.read_file(PathRegistry.COMUNE_SHAPES).to_crs(CRS_PROJECTED)
+    comuni = comuni[comuni["COD_PROV"]==37]
+    c_hull_comuni = unary_union(comuni.geometry).convex_hull.buffer(10000)
+
     logging.info("Processing the pt data")
     # Read the shp of the trips
     file_scheduling = PathRegistry.PT_SCHEDULING
@@ -243,6 +247,9 @@ def compute_capillarity(DO_PLOT):
     shp = shp.rename(columns={"shape_linestring": "geometry"}).set_geometry("geometry")
     shp = shp.to_crs(CRS_PROJECTED)
     gdf = shp[~shp['geometry'].isnull()][['geometry']]
+
+    # Filter the linestrings to keep only those that intersect the convex hull of the comuni
+    gdf = gdf[gdf.intersects(c_hull_comuni)]
 
     # Calculate the length of the PT road newtork
     unique_pt_roads, total_length_pt_roads = _process_lines(gdf=gdf)
@@ -269,22 +276,16 @@ def compute_capillarity(DO_PLOT):
     logging.info("Processing the road network data")
     # Create a convex hull around the roads (to extract roads from OSM)
     unique_pt_roads = unique_pt_roads[['geometry']]
-    unique_pt_roads = unique_pt_roads.to_crs(CRS_LATLONG)
-
-    merged = unary_union(unique_pt_roads.geometry)
-    convex_hull = merged.convex_hull
-
-    unique_pt_roads = unique_pt_roads.to_crs(CRS_PROJECTED)
 
     # Download the road newtork from OSM
-    # TODO: use the version of the road network compatible with the version of the data (=same year, same period)
-    convex_hull_gdf = gpd.GeoDataFrame({"geometry": [convex_hull] }, crs=CRS_LATLONG)
-    rn2, _ = road_network.create_road_data(convex_hull_gdf, relevant_highway=False, connected_network=False)
-    rn2 = rn2.reset_index()[['u','v','key','length','geometry']]
+    rn2, _ = data_reader.road_data(
+        PathRegistry.GEO_EDGES_PROV_2024,
+        PathRegistry.GEO_NODES_PROV_2024,
+    )
+    rn2 = rn2[['u','v','key','length','geometry']].to_crs(CRS_PROJECTED)
 
     # Calculate the length of the road newtork
     gdf = rn2[['geometry']]
-    gdf = gdf.to_crs(CRS_PROJECTED)
 
     unique_all_roads, total_length_all_roads = _process_lines(gdf=gdf)
 
