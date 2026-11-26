@@ -42,7 +42,7 @@ def _created_at(entity) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 logging.info("=== step_00: downloading raw inputs ===")
-#step_00_get_input_data.main()
+step_00_get_input_data.main()
 
 
 for step in PIPELINE[1:]:

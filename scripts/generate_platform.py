@@ -247,6 +247,8 @@ def _gen_workflow(pipeline, fp: str) -> str:
         "    envs=[",
         '        {"name": "PYTHONPATH", "value": "$PYTHONPATH:."},',
         '        {"name": "BDT_DATA_ROOT", "value": "/mnt/data"},',
+        "        # Same value as the entity labels: data dir and label stay in sync.",
+        '        {"name": "BDT_DATA_TAG", "value": "{{workflow.parameters.labels}}"},',
         "    ],",
         '    resources={"mem": "16Gi", "cpu": "3", "disk": "10Gi"},',
         "    parameters={",
