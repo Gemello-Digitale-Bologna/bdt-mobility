@@ -4,6 +4,7 @@ import geopandas as gpd
 
 
 from bdt_mobility.utils import data_reader, data_cleaner
+from bdt_mobility.utils.constants import CRS_PROJECTED
 from bdt_mobility.modules.transport.extraction import spatial_assignment
 
 from bdt_mobility.modules.transport.extraction.od_routing.parameters import context
@@ -421,13 +422,9 @@ def main(ctx: dict = context):
         p2v = pd.read_parquet(PathRegistry.P2V).iloc[0,0]
         od = _preprocess_od(matrice_OD=od, areas_od_zoi=areas_od_zoi, p2v=p2v)
 
-        ## Load the road network
-        if ctx["road_network"] == "dsf":
-            nodes = gpd.read_parquet(PathRegistry.DSF_NODES)
-        elif ctx["road_network"] == "geo":
-            nodes = gpd.read_parquet(PathRegistry.GEO_NODES)
-        elif ctx["road_network"] == "geo_all":
-            nodes = gpd.read_parquet(PathRegistry.GEO_NODES_ALL)
+        ## Load the road network from step 01
+        nodes = pd.read_csv(PathRegistry.SIM_NODES)
+        nodes = gpd.GeoDataFrame(nodes, geometry=gpd.points_from_xy(nodes["coord_x"], nodes["coord_y"]), crs=CRS_PROJECTED)
 
         # Load the vehicle type data per comune, filter and check
         comune_gdf = data_reader.comune_shapes(PathRegistry.COMUNE_SHAPES)
