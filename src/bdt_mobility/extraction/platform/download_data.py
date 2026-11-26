@@ -1,10 +1,9 @@
 """Download all pipeline data from DigitalHub to local PathRegistry paths.
 
-Mirrors ingest_data.py: first downloads raw inputs (step_00), then pulls all
-static MAIN_OUTPUTS produced by subsequent steps.
-
-Dynamic outputs (DynamicPlatformOutputs steps) are skipped: their names are
-only known at runtime. This is a temporary limitation TO BE FIXED.
+Mirrors ingest_data.py: first downloads raw inputs (step_00), then pulls every
+output produced by subsequent steps, restricted to entities labelled DATA_TAG
+(latest labelled version of each). Dynamic outputs are found through the
+manifest their step logs at ingestion time (see restore.py).
 
 Usage:
     python download_data.py
@@ -12,74 +11,19 @@ Usage:
 
 from __future__ import annotations
 
-import importlib
 import logging
-from datetime import datetime, timezone
-
-import digitalhub as dh
 
 from bdt_mobility.extraction import step_00_get_input_data
 from bdt_mobility.extraction.pipeline import PIPELINE
-from bdt_mobility.extraction.platform.outputs import DynamicPlatformOutputs
-
-from bdt_mobility.extraction.config import PROJECT_NAME
+from bdt_mobility.extraction.platform.restore import restore_outputs
 from bdt_mobility.utils.config import DATA_TAG
 
 logging.basicConfig(level=logging.INFO)
 
-_EPOCH = datetime.min.replace(tzinfo=timezone.utc)
-
-
-def _created_at(entity) -> datetime:
-    """Creation timestamp of an entity version (oldest possible if missing/unparsable)."""
-    created = getattr(entity.metadata, "created", None)
-    if not created:
-        return _EPOCH
-    try:
-        dt = datetime.fromisoformat(created)
-    except ValueError:
-        return _EPOCH
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
 logging.info("=== step_00: downloading raw inputs ===")
 step_00_get_input_data.main()
 
-
-for step in PIPELINE[1:]:
-    m = importlib.import_module(step.__name__)
-    outputs = getattr(m, "MAIN_OUTPUTS", [])
-
-    if not outputs:
-        continue
-
-    if isinstance(outputs, DynamicPlatformOutputs):
-        logging.warning(
-            "Skipping dynamic outputs for %s "
-            "(names only known at runtime — download manually from the DigitalHub UI)",
-            step.__name__,
-        )
-        continue
-
-    for out in outputs:
-        logging.info("Downloading %r", out.name)
-        logging.debug("Output path → %s", out.path)
-        existing, _ = dh.search_entity(project_name=PROJECT_NAME, name=out.name, labels=[DATA_TAG])
-
-        if not existing:
-            logging.warning("No entity found with label %r for %r", DATA_TAG, out.name)
-
-            existing_all, _ = dh.search_entity(project_name=PROJECT_NAME, name=out.name)
-            label_set = set()
-            for elem in existing_all:
-                # Entities ingested before labelling was introduced have no labels.
-                label_set.update(elem.metadata.labels or [])
-            logging.warning("Available labels for %r: %s", out.name, sorted(label_set) or "none")
-            continue
-
-        # search_entity gives no ordering guarantee: pick the most recently created version.
-        latest = max(existing, key=_created_at)
-        logging.debug(
-            "Selected %r with label %s, version %s (created %s) out of %d labelled version(s)",
-            out.name, latest.metadata.labels[0], latest.id, latest.metadata.created, len(existing),
-        )
-        latest.download(str(out.path.parent), overwrite=True)
+logging.info("=== downloading pipeline outputs labelled %r ===", DATA_TAG)
+missing = restore_outputs(PIPELINE[1:], DATA_TAG, strict=False)
+if missing:
+    logging.warning("%d output(s) not downloaded: %s", len(missing), missing)

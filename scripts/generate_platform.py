@@ -163,6 +163,24 @@ def _gen_handlers(pipeline, fp: str) -> str:
         '    return getattr(m, "main")()',
         "",
         "",
+        "def _log_manifest(project, module_name: str, names, entity_labels) -> None:",
+        '    """Log the list of runtime-named outputs of a dynamic step.',
+        "",
+        "    restore.py reads it back to restore/download those outputs. It is logged",
+        "    last, so its presence means every output of the step was logged.",
+        '    """',
+        "    import json",
+        "    import tempfile",
+        "    from pathlib import Path",
+        "    from bdt_mobility.extraction.platform.restore import manifest_name",
+        "    entries = [[name, str(Path(path).relative_to(PathRegistry.DATA))] for name, path in names]",
+        "    mname = manifest_name(module_name)",
+        "    with tempfile.TemporaryDirectory() as tmp:",
+        '        src = Path(tmp) / f"{mname}.json"',
+        "        src.write_text(json.dumps(entries, indent=2))",
+        '        project.log_artifact(mname, kind="artifact", source=str(src), labels=entity_labels)',
+        "",
+        "",
         "_verify()  # abort import if handlers are stale",
         "",
     ]
@@ -173,7 +191,30 @@ def _gen_handlers(pipeline, fp: str) -> str:
         module = step.__name__
         lines.append("")
 
-        if isinstance(outputs, list) and len(outputs) == 0:
+        if i == 0:
+            lines += [
+                f"# Step {i}: {module}",
+                "# Always runs. When resuming (start_step > 1) it also restores on the shared",
+                "# volume every output of steps 1..start_step-1, so later steps find their inputs.",
+                f"def {fn}(",
+                '    context: "Context",',
+                "    labels: list[str] | str | None = None,",
+                "    start_step: int | str = 0,",
+                ") -> None:",
+                f'    context.logger.info("Executing: {module}")',
+                f'    _exec_main("{module}")',
+                "    start = int(start_step)",
+                "    if start > 1:",
+                "        from bdt_mobility.extraction.pipeline import PIPELINE",
+                "        from bdt_mobility.extraction.platform.restore import restore_outputs",
+                "        tags = _as_labels(labels)",
+                "        if not tags:",
+                '            raise ValueError("Resuming (start_step > 1) requires the data label to restore outputs")',
+                '        context.logger.info(f"Resuming from step {start}: restoring outputs of steps 1..{start - 1} labelled {tags[0]!r}")',
+                "        restore_outputs(PIPELINE[1:start], tags[0], strict=True)",
+            ]
+
+        elif isinstance(outputs, list) and len(outputs) == 0:
             lines += [
                 f"# Step {i}: {module}",
                 f'def {fn}(context: "Context", labels: list[str] | str | None = None) -> None:',
@@ -213,6 +254,7 @@ def _gen_handlers(pipeline, fp: str) -> str:
                 "    entity_labels = _as_labels(labels)",
                 "    for name, path in names:",
                 f'        project.{log_fn}(name, kind={outputs.kind!r}, source=str(path), labels=entity_labels)',
+                f'    _log_manifest(project, "{module}", names, entity_labels)',
             ]
 
     lines.append("")
@@ -222,6 +264,19 @@ def _gen_handlers(pipeline, fp: str) -> str:
 # ---------------------------------------------------------------------------
 # workflow.py
 # ---------------------------------------------------------------------------
+
+
+def _resume_block(s_vars: list[str]) -> list[str]:
+    """Lines that make steps 1..n skippable via start_step, and every step retryable."""
+    return [
+        "            # Step 0 always runs (raw inputs + restore of earlier outputs when resuming).",
+        "            # Steps 1..n with index < start_step are skipped. Argo treats a Skipped",
+        "            # dependency as satisfied, so the chain continues from start_step.",
+        f"            for i, s in enumerate([{', '.join(s_vars)}]):",
+        "                if i > 0:",
+        '                    s.when = "{{workflow.parameters.start_step}} <= " + str(i)',
+        "                s.template.retry_strategy = RETRY_STRATEGY",
+    ]
 
 
 def _gen_workflow(pipeline, fp: str) -> str:
@@ -237,9 +292,17 @@ def _gen_workflow(pipeline, fp: str) -> str:
         "from __future__ import annotations",
         "",
         "from digitalhub_runtime_hera.dsl import step",
-        "from hera.workflows import DAG, Parameter, Workflow",
+        "from hera.workflows import DAG, Parameter, RetryStrategy, Workflow",
+        "from hera.workflows.models import Backoff",
         "",
         f'_FINGERPRINT = "{fp}"',
+        "",
+        "# Retry a step whose pod dies (eviction, node loss, OOM...) before failing the workflow.",
+        "RETRY_STRATEGY = RetryStrategy(",
+        '    limit="2",',
+        '    retry_policy="Always",',
+        '    backoff=Backoff(duration="1m", factor="2"),',
+        ")",
         "",
         "common_template = dict(",
         '    action="job",',
@@ -258,15 +321,29 @@ def _gen_workflow(pipeline, fp: str) -> str:
         "",
         "",
         "def pipeline():",
-        '    with Workflow(entrypoint="dag", arguments=Parameter(name="labels")) as w:',
+        "    with Workflow(",
+        '        entrypoint="dag",',
+        "        arguments=[",
+        '            Parameter(name="labels"),',
+        "            # Index of the first step to run: earlier steps are skipped (resume after a crash).",
+        '            Parameter(name="start_step", value="0"),',
+        "        ],",
+        "    ) as w:",
         '        with DAG(name="dag"):',
     ]
 
-    for i in range(n):
+    # Step 0 also receives start_step, to know which earlier outputs to restore.
+    lines.append(
+        f'            {s_vars[0]} = step(function="{_dh_name(0)}", template={{'
+        '**common_template, "parameters": {**common_template["parameters"], '
+        '"start_step": "{{workflow.parameters.start_step}}"}})'
+    )
+    for i in range(1, n):
         lines.append(
             f'            {s_vars[i]} = step(function="{_dh_name(i)}", template=common_template)'
         )
 
+    lines += _resume_block(s_vars)
     lines.append("            (")
     lines.append(f"                {s_vars[0]}")
     for var in s_vars[1:]:
@@ -293,9 +370,15 @@ def _gen_ingest(pipeline, fp: str) -> str:
         "",
         f"Fingerprint: {fp}",
         '"""',
+        "import os",
         "from pathlib import Path",
         "import digitalhub as dh",
         "from bdt_mobility.extraction.config import PROJECT_NAME, TAG_GITHUB",
+        "",
+        "# Resume after a crash: BDT_START_STEP=N skips steps 0..N-1 (data on the shared volume is reused).",
+        'START_STEP = int(os.environ.get("BDT_START_STEP", "0"))',
+        f"if not 0 <= START_STEP < {len(pipeline)}:",
+        f'    raise ValueError(f"BDT_START_STEP must be in [0, {len(pipeline) - 1}], got {{START_STEP}}")',
         "",
         "project = dh.get_project(PROJECT_NAME)",
         "",
@@ -356,7 +439,7 @@ def _gen_ingest(pipeline, fp: str) -> str:
         "    ],",
         '    secrets=["GIT_TOKEN"],',
         "    wait=True,",
-        f'    parameters={{"labels": {DATA_TAG!r}}},',
+        f'    parameters={{"labels": {DATA_TAG!r}, "start_step": str(START_STEP)}},',
         ")",
         "",
     ]

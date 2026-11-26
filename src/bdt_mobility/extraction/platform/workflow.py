@@ -6,9 +6,17 @@ Fingerprint: 37c3bd3a061a6426
 from __future__ import annotations
 
 from digitalhub_runtime_hera.dsl import step
-from hera.workflows import DAG, Parameter, Workflow
+from hera.workflows import DAG, Parameter, RetryStrategy, Workflow
+from hera.workflows.models import Backoff
 
 _FINGERPRINT = "37c3bd3a061a6426"
+
+# Retry a step whose pod dies (eviction, node loss, OOM...) before failing the workflow.
+RETRY_STRATEGY = RetryStrategy(
+    limit="2",
+    retry_policy="Always",
+    backoff=Backoff(duration="1m", factor="2"),
+)
 
 common_template = dict(
     action="job",
@@ -27,9 +35,16 @@ common_template = dict(
 
 
 def pipeline():
-    with Workflow(entrypoint="dag", arguments=Parameter(name="labels")) as w:
+    with Workflow(
+        entrypoint="dag",
+        arguments=[
+            Parameter(name="labels"),
+            # Index of the first step to run: earlier steps are skipped (resume after a crash).
+            Parameter(name="start_step", value="0"),
+        ],
+    ) as w:
         with DAG(name="dag"):
-            S_0 = step(function="data-ingestion-step-0", template=common_template)
+            S_0 = step(function="data-ingestion-step-0", template={**common_template, "parameters": {**common_template["parameters"], "start_step": "{{workflow.parameters.start_step}}"}})
             S_1 = step(function="data-ingestion-step-1", template=common_template)
             S_2 = step(function="data-ingestion-step-2", template=common_template)
             S_3 = step(function="data-ingestion-step-3", template=common_template)
@@ -44,19 +59,8 @@ def pipeline():
             S_12 = step(function="data-ingestion-step-12", template=common_template)
             S_13 = step(function="data-ingestion-step-13", template=common_template)
             S_14 = step(function="data-ingestion-step-14", template=common_template)
-            S_15 = step(function="data-ingestion-step-15", template=dict(
-                action="job",
-                secrets=["GIT_TOKEN"],
-                envs=[
-                    {"name": "PYTHONPATH", "value": "$PYTHONPATH:."},
-                    {"name": "BDT_DATA_ROOT", "value": "/mnt/data"},
-                    {"name": "BDT_DATA_TAG", "value": "{{workflow.parameters.labels}}"},
-                ],
-                resources={"mem": "24Gi", "cpu": "3", "disk": "10Gi"},
-                parameters={
-                    "labels": "{{workflow.parameters.labels}}",
-                },
-            ))
+            # Manual override (needs more RAM) — re-apply after regeneration until per-step resources are supported.
+            S_15 = step(function="data-ingestion-step-15", template={**common_template, "resources": {"mem": "24Gi", "cpu": "3", "disk": "10Gi"}})
             S_16 = step(function="data-ingestion-step-16", template=common_template)
             S_17 = step(function="data-ingestion-step-17", template=common_template)
             S_18 = step(function="data-ingestion-step-18", template=common_template)
@@ -76,6 +80,13 @@ def pipeline():
             S_32 = step(function="data-ingestion-step-32", template=common_template)
             S_33 = step(function="data-ingestion-step-33", template=common_template)
             S_34 = step(function="data-ingestion-step-34", template=common_template)
+            # Step 0 always runs (raw inputs + restore of earlier outputs when resuming).
+            # Steps 1..n with index < start_step are skipped. Argo treats a Skipped
+            # dependency as satisfied, so the chain continues from start_step.
+            for i, s in enumerate([S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7, S_8, S_9, S_10, S_11, S_12, S_13, S_14, S_15, S_16, S_17, S_18, S_19, S_20, S_21, S_22, S_23, S_24, S_25, S_26, S_27, S_28, S_29, S_30, S_31, S_32, S_33, S_34]):
+                if i > 0:
+                    s.when = "{{workflow.parameters.start_step}} <= " + str(i)
+                s.template.retry_strategy = RETRY_STRATEGY
             (
                 S_0
                 >> S_1

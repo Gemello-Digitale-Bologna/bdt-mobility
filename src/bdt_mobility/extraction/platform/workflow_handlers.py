@@ -64,13 +64,46 @@ def _exec_main(module_name: str):
     return getattr(m, "main")()
 
 
+def _log_manifest(project, module_name: str, names, entity_labels) -> None:
+    """Log the list of runtime-named outputs of a dynamic step.
+
+    restore.py reads it back to restore/download those outputs. It is logged
+    last, so its presence means every output of the step was logged.
+    """
+    import json
+    import tempfile
+    from pathlib import Path
+    from bdt_mobility.extraction.platform.restore import manifest_name
+    entries = [[name, str(Path(path).relative_to(PathRegistry.DATA))] for name, path in names]
+    mname = manifest_name(module_name)
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / f"{mname}.json"
+        src.write_text(json.dumps(entries, indent=2))
+        project.log_artifact(mname, kind="artifact", source=str(src), labels=entity_labels)
+
+
 _verify()  # abort import if handlers are stale
 
 
 # Step 0: bdt_mobility.extraction.step_00_get_input_data
-def step_0(context: "Context", labels: list[str] | str | None = None) -> None:
+# Always runs. When resuming (start_step > 1) it also restores on the shared
+# volume every output of steps 1..start_step-1, so later steps find their inputs.
+def step_0(
+    context: "Context",
+    labels: list[str] | str | None = None,
+    start_step: int | str = 0,
+) -> None:
     context.logger.info("Executing: bdt_mobility.extraction.step_00_get_input_data")
     _exec_main("bdt_mobility.extraction.step_00_get_input_data")
+    start = int(start_step)
+    if start > 1:
+        from bdt_mobility.extraction.pipeline import PIPELINE
+        from bdt_mobility.extraction.platform.restore import restore_outputs
+        tags = _as_labels(labels)
+        if not tags:
+            raise ValueError("Resuming (start_step > 1) requires the data label to restore outputs")
+        context.logger.info(f"Resuming from step {start}: restoring outputs of steps 1..{start - 1} labelled {tags[0]!r}")
+        restore_outputs(PIPELINE[1:start], tags[0], strict=True)
 
 # Step 1: bdt_mobility.modules.transport.extraction.step_01_process_road_network
 @handler(outputs=['geo_edges_all', 'geo_nodes_all', 'geo_edges', 'geo_nodes', 'dsf_edges', 'dsf_nodes'])
@@ -204,6 +237,7 @@ def step_10(
     entity_labels = _as_labels(labels)
     for name, path in names:
         project.log_dataitem(name, kind='table', source=str(path), labels=entity_labels)
+    _log_manifest(project, "bdt_mobility.modules.transport.extraction.od_routing.step_02_preprocessing_platoons", names, entity_labels)
 
 # Step 11: bdt_mobility.modules.transport.extraction.od_routing.step_03_simulation
 @handler()
@@ -217,6 +251,7 @@ def step_11(
     entity_labels = _as_labels(labels)
     for name, path in names:
         project.log_dataitem(name, kind='table', source=str(path), labels=entity_labels)
+    _log_manifest(project, "bdt_mobility.modules.transport.extraction.od_routing.step_03_simulation", names, entity_labels)
 
 # Step 12: bdt_mobility.modules.transport.extraction.od_routing.step_04_estimate_zonal_flows
 @handler(outputs=['inflow_per_zone_from_simulator', 'traffic_per_zone_from_simulator', 'starting_per_zone_from_simulator', 'inflow_per_zone_from_simulator_processed', 'traffic_per_zone_from_simulator_processed', 'starting_per_zone_from_simulator_processed'])
@@ -284,6 +319,7 @@ def step_16(
     entity_labels = _as_labels(labels)
     for name, path in names:
         project.log_dataitem(name, kind='table', source=str(path), labels=entity_labels)
+    _log_manifest(project, "bdt_mobility.modules.transport.extraction.od_routing.step_08_estimate_emissions", names, entity_labels)
 
 # Step 17: bdt_mobility.modules.transport.extraction.transport_efficiency.step_01_set_up_grid
 @handler(outputs=['poi_h3_assigned', 'hex_poi_stat'])
