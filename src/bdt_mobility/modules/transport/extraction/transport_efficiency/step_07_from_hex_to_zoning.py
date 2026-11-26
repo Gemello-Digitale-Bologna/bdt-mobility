@@ -14,7 +14,7 @@ from bdt_mobility.extraction.platform.outputs import PlatformOutput
 from bdt_mobility.modules.transport.extraction.transport_efficiency.parameters import context
 
 MAIN_OUTPUTS = [
-    PlatformOutput("hex_centroids_enhanced", PathRegistry.HEX_POP_POI_STAT, "table"),
+    PlatformOutput("map_metrics_to_pums_zones", PathRegistry.MAP_TO_PUMS_ZONES, "table"),
 ]
 
 
