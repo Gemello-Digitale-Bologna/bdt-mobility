@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+from datetime import datetime, timezone
 
 import digitalhub as dh
 
@@ -21,13 +22,27 @@ from bdt_mobility.extraction import step_00_get_input_data
 from bdt_mobility.extraction.pipeline import PIPELINE
 from bdt_mobility.extraction.platform.outputs import DynamicPlatformOutputs
 
-from bdt_mobility.extraction.config import PROJECT
+from bdt_mobility.extraction.config import PROJECT_NAME
 from bdt_mobility.utils.config import DATA_TAG
 
 logging.basicConfig(level=logging.INFO)
 
+_EPOCH = datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _created_at(entity) -> datetime:
+    """Creation timestamp of an entity version (oldest possible if missing/unparsable)."""
+    created = getattr(entity.metadata, "created", None)
+    if not created:
+        return _EPOCH
+    try:
+        dt = datetime.fromisoformat(created)
+    except ValueError:
+        return _EPOCH
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
 logging.info("=== step_00: downloading raw inputs ===")
-step_00_get_input_data.main()
+#step_00_get_input_data.main()
 
 
 for step in PIPELINE[1:]:
@@ -46,19 +61,25 @@ for step in PIPELINE[1:]:
         continue
 
     for out in outputs:
-        logging.info("Downloading %r → %s", out.name, out.path)
-        items = dh.search_entity(project_name=PROJECT, name=out.name, labels=[DATA_TAG])
-        existing = items[0]
-        
+        logging.info("Downloading %r", out.name)
+        logging.debug("Output path → %s", out.path)
+        existing, _ = dh.search_entity(project_name=PROJECT_NAME, name=out.name, labels=[DATA_TAG])
+
         if not existing:
-            logging.warning("No entity found with labels %r  for %r", DATA_TAG, out.name)
-            
-            items_all = dh.search_entity(project_name=PROJECT, name=out.name)
-            existing_all = items_all[0]
+            logging.warning("No entity found with label %r for %r", DATA_TAG, out.name)
+
+            existing_all, _ = dh.search_entity(project_name=PROJECT_NAME, name=out.name)
             label_set = set()
             for elem in existing_all:
-                label_set.add(elem.metadata.labels[0])
-            logging.warning("Available labels for %r: %s", out.name, label_set)
+                # Entities ingested before labelling was introduced have no labels.
+                label_set.update(elem.metadata.labels or [])
+            logging.warning("Available labels for %r: %s", out.name, sorted(label_set) or "none")
             continue
-        else:
-            existing[-1].download(str(out.path.parent), overwrite=True)
+
+        # search_entity gives no ordering guarantee: pick the most recently created version.
+        latest = max(existing, key=_created_at)
+        logging.debug(
+            "Selected %r with label %s, version %s (created %s) out of %d labelled version(s)",
+            out.name, latest.metadata.labels[0], latest.id, latest.metadata.created, len(existing),
+        )
+        latest.download(str(out.path.parent), overwrite=True)
