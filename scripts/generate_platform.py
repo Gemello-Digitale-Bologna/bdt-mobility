@@ -82,7 +82,10 @@ def _registry_attr(path: Path) -> str:
 def _log_call(project_var: str, out: PlatformOutput) -> str:
     method = "log_artifact" if out.kind == "artifact" else "log_dataitem"
     path_expr = _registry_attr(out.path)
-    return f"{project_var}.{method}({out.name!r}, kind={out.kind!r}, source=str({path_expr}))"
+    return (
+        f"{project_var}.{method}({out.name!r}, kind={out.kind!r}, "
+        f"source=str({path_expr}), labels=entity_labels)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -109,8 +112,6 @@ def _gen_handlers(pipeline, fp: str) -> str:
         "from bdt_mobility.utils.paths import PathRegistry",
         "",
         "if typing.TYPE_CHECKING:",
-        "    from digitalhub.entities.artifact._base.entity import Artifact",
-        "    from digitalhub.entities.dataitem.table.entity import DataitemTable",
         "    from digitalhub.entities.project._base.entity import Project",
         "    from nuclio_sdk import Context",
         "",
@@ -142,16 +143,18 @@ def _gen_handlers(pipeline, fp: str) -> str:
         "        )",
         "",
         "",
-        "def _tag_list(",
-        "    entities: list[DataitemTable | Artifact],",
-        "    labels: list[str] | str | None,",
-        ") -> None:",
-        "    if labels is not None:",
-        "        if isinstance(labels, str):",
-        "            labels = [labels]",
-        "        for e in entities:",
-        "            e.metadata.labels = labels",
-        "            e.save(update=True)",
+        "def _as_labels(labels: list[str] | str | None) -> list[str] | None:",
+        '    """Normalise the workflow `labels` parameter into the list expected by log_*().',
+        "",
+        "    Labels are passed at creation time (not via a later save) so that an entity",
+        "    can never exist on the platform without its data label, even if the pod dies.",
+        '    """',
+        "    if labels is None:",
+        "        return None",
+        "    if isinstance(labels, str):",
+        "        labels = [labels]",
+        "    labels = [lbl.strip() for lbl in labels if lbl and lbl.strip()]",
+        "    return labels or None",
         "",
         "",
         "def _exec_main(module_name: str):",
@@ -190,13 +193,10 @@ def _gen_handlers(pipeline, fp: str) -> str:
                 ") -> None:",
                 f'    context.logger.info("Executing: {module}")',
                 f'    _exec_main("{module}")',
+                "    entity_labels = _as_labels(labels)",
             ]
-            var_names = []
-            for j, out in enumerate(outputs):
-                var = f"d{j + 1}"
-                var_names.append(var)
-                lines.append(f"    {var} = {_log_call('project', out)}")
-            lines.append(f"    _tag_list([{', '.join(var_names)}], labels)")
+            for out in outputs:
+                lines.append(f"    {_log_call('project', out)}")
 
         elif isinstance(outputs, DynamicPlatformOutputs):
             log_fn = "log_artifact" if outputs.kind == "artifact" else "log_dataitem"
@@ -210,11 +210,9 @@ def _gen_handlers(pipeline, fp: str) -> str:
                 ") -> None:",
                 f'    context.logger.info("Executing: {module}")',
                 f'    names = _exec_main("{module}")',
-                "    dataitems = []",
+                "    entity_labels = _as_labels(labels)",
                 "    for name, path in names:",
-                f'        d = project.{log_fn}(name, kind={outputs.kind!r}, source=str(path))',
-                "        dataitems.append(d)",
-                "    _tag_list(dataitems, labels)",
+                f'        project.{log_fn}(name, kind={outputs.kind!r}, source=str(path), labels=entity_labels)',
             ]
 
     lines.append("")
