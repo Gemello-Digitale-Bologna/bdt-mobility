@@ -16,6 +16,8 @@ common_template = dict(
     envs=[
         {"name": "PYTHONPATH", "value": "$PYTHONPATH:."},
         {"name": "BDT_DATA_ROOT", "value": "/mnt/data"},
+        # Same value as the entity labels: data dir and label stay in sync.
+        {"name": "BDT_DATA_TAG", "value": "{{workflow.parameters.labels}}"},
     ],
     resources={"mem": "24Gi", "cpu": "3", "disk": "10Gi"},
     parameters={
