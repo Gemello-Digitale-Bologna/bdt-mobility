@@ -249,7 +249,7 @@ def _gen_workflow(pipeline, fp: str) -> str:
         '        {"name": "PYTHONPATH", "value": "$PYTHONPATH:."},',
         '        {"name": "BDT_DATA_ROOT", "value": "/mnt/data"},',
         "    ],",
-        '    resources={"mem": "16Gi", "cpu": "3", "disk": "10Gi"},',
+        '    resources={"mem": "24Gi", "cpu": "3", "disk": "10Gi"},',
         "    parameters={",
         '        "labels": "{{workflow.parameters.labels}}",',
         "    },",
