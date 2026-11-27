@@ -14,11 +14,12 @@ from bdt_mobility.modules.ethics import mpi_toolkit as MPI_toolkit
 from bdt_mobility.utils.paths import PathRegistry
 from bdt_mobility.utils.config import logging, logging_level
 from bdt_mobility.utils.timing import timed
+from bdt_mobility.extraction.platform.outputs import DynamicPlatformOutputs
 from bdt_mobility.modules.ethics.extraction.parameters import fragilities
 
 # df_{category}_indicators_{gender}.parquet and df_{category}_MPI_{gender}.parquet are dynamic
-# outputs -- enumeration requires runtime knowledge of categories/genders; not yet logged to platform.
-MAIN_OUTPUTS = []
+# outputs (one pair per category/gender): main() returns their (name, path) pairs.
+MAIN_OUTPUTS = DynamicPlatformOutputs(PathRegistry.ANALYSIS_OUTPUTS, "table")
 
 # The column order the legacy tables carry.
 KEY_COLUMNS = fragilities["indicators"]["by_category"]["base"]
@@ -412,6 +413,7 @@ def main():
         df_economic_direction = _read(PathRegistry.INCOME_INDICATORS_DIRECTIONS)
 
         logging.info("Computing MPIs per category")
+        names = []
         for category in ["elderly", "minors", 'economic']:
             for gender in [None, "female", "male"]:
                 df_temp_indicators, df_MPI = get_multidimensional_index_category(
@@ -426,10 +428,15 @@ def main():
                 logging.debug(f"Temp Indicators:\n{df_temp_indicators}")
                 logging.debug(f"MPI:\n{df_MPI}")
 
-                df_temp_indicators.to_parquet(PathRegistry.FRAGILITY_INDICATORS.substitute(category=category, gender=gender))
-                df_MPI.to_parquet(PathRegistry.FRAGILITY_MPI.substitute(category=category, gender=gender))
+                indicators_path = PathRegistry.FRAGILITY_INDICATORS.substitute(category=category, gender=gender)
+                mpi_path = PathRegistry.FRAGILITY_MPI.substitute(category=category, gender=gender)
+                df_temp_indicators.to_parquet(indicators_path)
+                df_MPI.to_parquet(mpi_path)
+                names.append((indicators_path.stem, indicators_path))
+                names.append((mpi_path.stem, mpi_path))
 
         logging.info("Analysis completed and output saved")
+    return names
 
 
 if __name__ == "__main__":

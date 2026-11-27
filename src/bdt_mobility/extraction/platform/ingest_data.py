@@ -3,7 +3,7 @@
 Registers per-step DigitalHub functions and runs the data-ingestion Hera workflow.
 Run from the platform/ directory (reads local req.txt).
 
-Fingerprint: 9305f3e882598257
+Fingerprint: b09d3987cc0abe1b
 """
 from pathlib import Path
 import digitalhub as dh

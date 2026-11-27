@@ -407,7 +407,7 @@ def compute_travel_times(hex_ids: list,
       
       
 def main(
-  ctx: dict
+  ctx: dict = context
 ):
   logging.basicConfig(level=logging_level)
   with timed():
@@ -429,7 +429,7 @@ def main(
       gdf_centroids.geometry.x.values,
       gdf_centroids.geometry.y.values
     ])  
-    
+
     tt_pt = compute_travel_times(
       hex_ids = hex_ids,
       hex_coords = hex_coords,
@@ -440,7 +440,7 @@ def main(
       max_travel_time_secs = ctx['max_travel_time_secs'],
       gtfs_path = PathRegistry.GTFS_DATA
     )
-    
+
     travel_times_pt_df = pd.DataFrame(tt_pt, index=hex_ids, columns=hex_ids)
     
     travel_times_pt_df.to_parquet(PathRegistry.TRAVEL_TIMES_PT, engine='pyarrow', index=True)
