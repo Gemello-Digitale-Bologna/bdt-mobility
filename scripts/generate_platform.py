@@ -163,6 +163,24 @@ def _gen_handlers(pipeline, fp: str) -> str:
         '    return getattr(m, "main")()',
         "",
         "",
+        "def _log_manifest(project, module_name: str, names, entity_labels) -> None:",
+        '    """Log the list of runtime-named outputs of a dynamic step.',
+        "",
+        "    restore.py reads it back to restore/download those outputs. It is logged",
+        "    last, so its presence means every output of the step was logged.",
+        '    """',
+        "    import json",
+        "    import tempfile",
+        "    from pathlib import Path",
+        "    from bdt_mobility.extraction.platform.restore import manifest_name",
+        "    entries = [[name, str(Path(path).relative_to(PathRegistry.DATA))] for name, path in names]",
+        "    mname = manifest_name(module_name)",
+        "    with tempfile.TemporaryDirectory() as tmp:",
+        '        src = Path(tmp) / f"{mname}.json"',
+        "        src.write_text(json.dumps(entries, indent=2))",
+        '        project.log_artifact(mname, kind="artifact", source=str(src), labels=entity_labels)',
+        "",
+        "",
         "_verify()  # abort import if handlers are stale",
         "",
     ]
@@ -213,6 +231,7 @@ def _gen_handlers(pipeline, fp: str) -> str:
                 "    entity_labels = _as_labels(labels)",
                 "    for name, path in names:",
                 f'        project.{log_fn}(name, kind={outputs.kind!r}, source=str(path), labels=entity_labels)',
+                f'    _log_manifest(project, "{module}", names, entity_labels)',
             ]
 
     lines.append("")
