@@ -62,12 +62,6 @@ from bdt_mobility.utils.constants import CRS_LATLONG, CRS_PROJECTED
 from bdt_mobility.utils.timing import timed
 from bdt_mobility.extraction.platform.outputs import PlatformOutput
 
-# The GTFS scenario directory (GTFS_PT_SCENARIO) is not declared: outputs must be single files.
-MAIN_OUTPUTS = [
-    PlatformOutput("pt_scenario_travel_times", PathRegistry.TRAVEL_TIMES_PT_SCENARIO, "artifact"),
-    PlatformOutput("pt_scenario_cdi_impact", PathRegistry.PT_SCENARIO_CDI_IMPACT, "artifact"),
-]
-
 from bdt_mobility.modules.transport.extraction.transport_efficiency.parameters import context
 from bdt_mobility.modules.transport.extraction.transport_efficiency.step_03_travel_times_public_transport import compute_travel_times
 from bdt_mobility.modules.transport.extraction.transport_efficiency.step_05_car_dependency_estimation import getOpportunityScores
@@ -77,6 +71,12 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from pathlib import Path
+
+# The GTFS scenario directory (GTFS_PT_SCENARIO) is not declared: outputs must be single files.
+MAIN_OUTPUTS = [
+    PlatformOutput("pt_scenario_travel_times", PathRegistry.TRAVEL_TIMES_PT_SCENARIO, "artifact"),
+    PlatformOutput("pt_scenario_cdi_impact", PathRegistry.PT_SCENARIO_CDI_IMPACT, "artifact"),
+]
 
 # ── PT Coverage Analysis ──────────────────────────────────────
 def analyze_pt_coverage(tt_pt: pd.DataFrame,

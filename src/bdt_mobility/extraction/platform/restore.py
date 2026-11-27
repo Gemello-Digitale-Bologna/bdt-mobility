@@ -124,6 +124,7 @@ def restore_outputs(steps: list[ModuleType], tag: str, *, strict: bool) -> list[
     so a single run reports everything that is missing).
     """
     missing: list[str] = []
+    downloaded = 0
     for step in steps:
         pairs = _step_outputs(step, tag)
         if pairs is None:
@@ -134,9 +135,15 @@ def restore_outputs(steps: list[ModuleType], tag: str, *, strict: bool) -> list[
             missing.append(manifest_name(step.__name__))
             continue
         for name, kind, path in pairs:
-            logger.info("Restoring %r → %s", name, path)
-            if restore_latest(name, kind, path, tag) is None:
+            restored = restore_latest(name, kind, path, tag)
+            if restored is None:
                 missing.append(name)
+                continue
+            downloaded += 1
+            logger.info("Downloaded %s", restored.name)
+            logger.debug("Saved %s to %s", restored.name, restored)
+
+    logger.debug("Downloaded %d file(s), %d missing", downloaded, len(missing))
 
     if missing and strict:
         raise RestoreError(

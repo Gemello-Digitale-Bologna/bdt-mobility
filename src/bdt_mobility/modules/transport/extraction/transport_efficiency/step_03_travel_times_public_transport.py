@@ -429,21 +429,18 @@ def main(
       gdf_centroids.geometry.x.values,
       gdf_centroids.geometry.y.values
     ])  
-    try: 
-      tt_pt = compute_travel_times(
-        hex_ids = hex_ids,
-        hex_coords = hex_coords,
-        day_of_week = ctx['day_of_week'],
-        departure_hours = departure_hours,
-        max_walk_meters = ctx['max_walk_meters'],
-        walk_speed_ms = ctx['walk_speed_ms'],
-        max_travel_time_secs = ctx['max_travel_time_secs'],
-        gtfs_path = PathRegistry.GTFS_DATA
-      )
-    except Exception as e:
-      logging.error(f"Error during travel time computation: {e}")
-      raise
-    
+
+    tt_pt = compute_travel_times(
+      hex_ids = hex_ids,
+      hex_coords = hex_coords,
+      day_of_week = ctx['day_of_week'],
+      departure_hours = departure_hours,
+      max_walk_meters = ctx['max_walk_meters'],
+      walk_speed_ms = ctx['walk_speed_ms'],
+      max_travel_time_secs = ctx['max_travel_time_secs'],
+      gtfs_path = PathRegistry.GTFS_DATA
+    )
+
     travel_times_pt_df = pd.DataFrame(tt_pt, index=hex_ids, columns=hex_ids)
     
     travel_times_pt_df.to_parquet(PathRegistry.TRAVEL_TIMES_PT, engine='pyarrow', index=True)
