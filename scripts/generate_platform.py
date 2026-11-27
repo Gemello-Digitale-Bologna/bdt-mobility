@@ -375,7 +375,7 @@ def _gen_ingest(pipeline, fp: str) -> str:
         "import digitalhub as dh",
         "from bdt_mobility.extraction.config import PROJECT_NAME, TAG_GITHUB",
         "",
-        "# Resume after a crash: BDT_START_STEP=N skips steps 0..N-1 (data on the shared volume is reused).",
+        "# Resume after a crash: BDT_START_STEP=N skips steps 1..N-1 (data on the shared volume is reused).",
         'START_STEP = int(os.environ.get("BDT_START_STEP", "0"))',
         f"if not 0 <= START_STEP < {len(pipeline)}:",
         f'    raise ValueError(f"BDT_START_STEP must be in [0, {len(pipeline) - 1}], got {{START_STEP}}")',

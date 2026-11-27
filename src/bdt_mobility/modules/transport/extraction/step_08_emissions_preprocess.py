@@ -17,6 +17,7 @@ MAIN_OUTPUTS = [
     PlatformOutput("poll_ef", PathRegistry.POLL_EF_PARQUET, "table"),
     PlatformOutput("co2_ef", PathRegistry.CO2_EF_PARQUET, "table"),
     PlatformOutput("euro_class_split", PathRegistry.EURO_CLASS_SPLIT_PARQUET, "table"),
+    PlatformOutput("euro_class_emissions", PathRegistry.EURO_CLASS_EMISSIONS_PARQUET, "table"),
 ]
 
 

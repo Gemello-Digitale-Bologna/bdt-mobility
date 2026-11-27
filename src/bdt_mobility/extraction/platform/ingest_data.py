@@ -3,14 +3,14 @@
 Registers per-step DigitalHub functions and runs the data-ingestion Hera workflow.
 Run from the platform/ directory (reads local req.txt).
 
-Fingerprint: 37c3bd3a061a6426
+Fingerprint: b09d3987cc0abe1b
 """
 import os
 from pathlib import Path
 import digitalhub as dh
 from bdt_mobility.extraction.config import PROJECT_NAME, TAG_GITHUB
 
-# Resume after a crash: BDT_START_STEP=N skips steps 0..N-1 (data on the shared volume is reused).
+# Resume after a crash: BDT_START_STEP=N skips steps 1..N-1 (data on the shared volume is reused).
 START_STEP = int(os.environ.get("BDT_START_STEP", "0"))
 if not 0 <= START_STEP < 35:
     raise ValueError(f"BDT_START_STEP must be in [0, 34], got {START_STEP}")
