@@ -86,9 +86,24 @@ _verify()  # abort import if handlers are stale
 
 
 # Step 0: bdt_mobility.extraction.step_00_get_input_data
-def step_0(context: "Context", labels: list[str] | str | None = None) -> None:
+# Always runs. When resuming (start_step > 1) it also restores on the shared
+# volume every output of steps 1..start_step-1, so later steps find their inputs.
+def step_0(
+    context: "Context",
+    labels: list[str] | str | None = None,
+    start_step: int | str = 0,
+) -> None:
     context.logger.info("Executing: bdt_mobility.extraction.step_00_get_input_data")
     _exec_main("bdt_mobility.extraction.step_00_get_input_data")
+    start = int(start_step)
+    if start > 1:
+        from bdt_mobility.extraction.pipeline import PIPELINE
+        from bdt_mobility.extraction.platform.restore import restore_outputs
+        tags = _as_labels(labels)
+        if not tags:
+            raise ValueError("Resuming (start_step > 1) requires the data label to restore outputs")
+        context.logger.info(f"Resuming from step {start}: restoring outputs of steps 1..{start - 1} labelled {tags[0]!r}")
+        restore_outputs(PIPELINE[1:start], tags[0], strict=True)
 
 # Step 1: bdt_mobility.modules.transport.extraction.step_01_process_road_network
 @handler(outputs=['geo_edges_all', 'geo_nodes_all', 'geo_edges', 'geo_nodes', 'dsf_edges', 'dsf_nodes'])
