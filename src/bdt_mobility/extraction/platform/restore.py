@@ -7,7 +7,9 @@ Shared by:
     steps ``1 .. start_step-1`` (strict: fail fast if anything is missing).
 
 Only entities carrying the data label are considered, and for each output the
-most recently created labelled version is used.
+most recently created labelled version is used. All versions of an entity are
+listed through the paginated ``get_*_versions`` SDK calls (``search_entity``
+returns a single unordered page, so it could miss the newest version).
 
 Dynamic steps (``DynamicPlatformOutputs``) log their outputs under names known
 only at runtime. Alongside them they log a *manifest* artifact (see
@@ -26,6 +28,7 @@ from pathlib import Path
 from types import ModuleType
 
 import digitalhub as dh
+from digitalhub.utils.exceptions import EntityNotExistsError
 
 from bdt_mobility.extraction.config import PROJECT_NAME
 from bdt_mobility.extraction.platform.outputs import DynamicPlatformOutputs
@@ -57,30 +60,34 @@ def _created_at(entity) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
-def _available_labels(name: str) -> list[str]:
-    existing_all, _ = dh.search_entity(project_name=PROJECT_NAME, name=name)
-    labels: set[str] = set()
-    for elem in existing_all:
-        # Entities ingested before labelling was introduced have no labels.
-        labels.update(elem.metadata.labels or [])
-    return sorted(labels)
+def _all_versions(name: str, kind: str) -> list:
+    """Every version of the dataitem (kind 'table') or artifact called ``name``."""
+    getter = dh.get_dataitem_versions if kind == "table" else dh.get_artifact_versions
+    try:
+        return getter(name, project=PROJECT_NAME)
+    except EntityNotExistsError:  # never logged under this name
+        return []
 
 
-def restore_latest(name: str, target: Path, tag: str) -> Path | None:
+def restore_latest(name: str, kind: str, target: Path, tag: str) -> Path | None:
     """Download the latest version of ``name`` labelled ``tag`` to ``target``.
 
+    ``kind`` is the output kind ("table" → dataitem, "artifact" → artifact).
     ``target`` is the exact file path the pipeline expects. Returns the local
     path, or ``None`` if no labelled version exists.
     """
-    existing, _ = dh.search_entity(project_name=PROJECT_NAME, name=name, labels=[tag])
+    versions = _all_versions(name, kind)
+    existing = [v for v in versions if tag in (v.metadata.labels or [])]
     if not existing:
+        # Entities ingested before labelling was introduced have no labels.
+        available = sorted({lbl for v in versions for lbl in (v.metadata.labels or [])})
         logger.warning(
-            "No entity %r with label %r (available labels: %s)",
-            name, tag, _available_labels(name) or "none",
+            "No %s %r with label %r among %d version(s) (available labels: %s)",
+            kind, name, tag, len(versions), available or "none",
         )
         return None
 
-    # search_entity gives no ordering guarantee: pick the most recently created version.
+    # No ordering guarantee on the listing: pick the most recently created version.
     latest = max(existing, key=_created_at)
     logger.debug(
         "Selected %r version %s (created %s) out of %d labelled version(s)",
@@ -90,23 +97,23 @@ def restore_latest(name: str, target: Path, tag: str) -> Path | None:
     return Path(latest.download(str(target), overwrite=True))
 
 
-def _read_manifest(module_name: str, tag: str) -> list[tuple[str, Path]] | None:
+def _read_manifest(module_name: str, kind: str, tag: str) -> list[tuple[str, str, Path]] | None:
     name = manifest_name(module_name)
     with tempfile.TemporaryDirectory() as tmp:
-        local = restore_latest(name, Path(tmp) / f"{name}.json", tag)
+        local = restore_latest(name, "artifact", Path(tmp) / f"{name}.json", tag)
         if local is None:
             return None
         entries = json.loads(local.read_text())
-    return [(n, PathRegistry.DATA / rel) for n, rel in entries]
+    return [(n, kind, PathRegistry.DATA / rel) for n, rel in entries]
 
 
-def _step_outputs(step: ModuleType, tag: str) -> list[tuple[str, Path]] | None:
-    """(name, local path) pairs a step produced; ``None`` if they cannot be determined."""
+def _step_outputs(step: ModuleType, tag: str) -> list[tuple[str, str, Path]] | None:
+    """(name, kind, local path) triples a step produced; ``None`` if they cannot be determined."""
     m = importlib.import_module(step.__name__)
     outputs = getattr(m, "MAIN_OUTPUTS", [])
     if isinstance(outputs, DynamicPlatformOutputs):
-        return _read_manifest(step.__name__, tag)
-    return [(o.name, Path(o.path)) for o in outputs]
+        return _read_manifest(step.__name__, outputs.kind, tag)
+    return [(o.name, o.kind, Path(o.path)) for o in outputs]
 
 
 def restore_outputs(steps: list[ModuleType], tag: str, *, strict: bool) -> list[str]:
@@ -126,9 +133,9 @@ def restore_outputs(steps: list[ModuleType], tag: str, *, strict: bool) -> list[
             )
             missing.append(manifest_name(step.__name__))
             continue
-        for name, path in pairs:
+        for name, kind, path in pairs:
             logger.info("Restoring %r → %s", name, path)
-            if restore_latest(name, path, tag) is None:
+            if restore_latest(name, kind, path, tag) is None:
                 missing.append(name)
 
     if missing and strict:
