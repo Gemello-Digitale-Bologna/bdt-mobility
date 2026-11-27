@@ -83,6 +83,7 @@ Tests that require data fail explicitly when data is absent.
   ```bash
   uv sync --group dev
   uv pip freeze | grep -v "^-e file" > src/bdt_mobility/extraction/platform/req.txt
+  echo "bdt-mobility @ git+https://github.com/Gemello-Digitale-Bologna/bdt-mobility.git" >> src/bdt_mobility/extraction/platform/req.txt
   ```
 - [ ] Update `TAG_GITHUB` in `src/bdt_mobility/extraction/config.py`
   to the target branch or commit SHA.

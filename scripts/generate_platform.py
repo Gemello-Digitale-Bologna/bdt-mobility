@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from bdt_mobility.extraction.pipeline import PIPELINE
 from bdt_mobility.extraction.platform.outputs import DynamicPlatformOutputs, PlatformOutput
 from bdt_mobility.utils.paths import PathRegistry
+from bdt_mobility.utils.config import DATA_TAG
 
 PLATFORM_DIR = Path("src/bdt_mobility/extraction/platform")
 DH_STEP_PREFIX = "data-ingestion-step"
@@ -81,7 +82,10 @@ def _registry_attr(path: Path) -> str:
 def _log_call(project_var: str, out: PlatformOutput) -> str:
     method = "log_artifact" if out.kind == "artifact" else "log_dataitem"
     path_expr = _registry_attr(out.path)
-    return f"{project_var}.{method}({out.name!r}, kind={out.kind!r}, source=str({path_expr}))"
+    return (
+        f"{project_var}.{method}({out.name!r}, kind={out.kind!r}, "
+        f"source=str({path_expr}), labels=entity_labels)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -108,8 +112,6 @@ def _gen_handlers(pipeline, fp: str) -> str:
         "from bdt_mobility.utils.paths import PathRegistry",
         "",
         "if typing.TYPE_CHECKING:",
-        "    from digitalhub.entities.artifact._base.entity import Artifact",
-        "    from digitalhub.entities.dataitem.table.entity import DataitemTable",
         "    from digitalhub.entities.project._base.entity import Project",
         "    from nuclio_sdk import Context",
         "",
@@ -141,22 +143,42 @@ def _gen_handlers(pipeline, fp: str) -> str:
         "        )",
         "",
         "",
-        "def _tag_list(",
-        "    entities: list[DataitemTable | Artifact],",
-        "    labels: list[str] | str | None,",
-        ") -> None:",
-        "    if labels is not None:",
-        "        if isinstance(labels, str):",
-        "            labels = [labels]",
-        "        for e in entities:",
-        "            e.metadata.labels = labels",
-        "            e.save(update=True)",
+        "def _as_labels(labels: list[str] | str | None) -> list[str] | None:",
+        '    """Normalise the workflow `labels` parameter into the list expected by log_*().',
+        "",
+        "    Labels are passed at creation time (not via a later save) so that an entity",
+        "    can never exist on the platform without its data label, even if the pod dies.",
+        '    """',
+        "    if labels is None:",
+        "        return None",
+        "    if isinstance(labels, str):",
+        "        labels = [labels]",
+        "    labels = [lbl.strip() for lbl in labels if lbl and lbl.strip()]",
+        "    return labels or None",
         "",
         "",
         "def _exec_main(module_name: str):",
         '    """Import module_name and call its main(); return whatever main() returns."""',
         "    m = importlib.import_module(module_name)",
         '    return getattr(m, "main")()',
+        "",
+        "",
+        "def _log_manifest(project, module_name: str, names, entity_labels) -> None:",
+        '    """Log the list of runtime-named outputs of a dynamic step.',
+        "",
+        "    restore.py reads it back to restore/download those outputs. It is logged",
+        "    last, so its presence means every output of the step was logged.",
+        '    """',
+        "    import json",
+        "    import tempfile",
+        "    from pathlib import Path",
+        "    from bdt_mobility.extraction.platform.restore import manifest_name",
+        "    entries = [[name, str(Path(path).relative_to(PathRegistry.DATA))] for name, path in names]",
+        "    mname = manifest_name(module_name)",
+        "    with tempfile.TemporaryDirectory() as tmp:",
+        '        src = Path(tmp) / f"{mname}.json"',
+        "        src.write_text(json.dumps(entries, indent=2))",
+        '        project.log_artifact(mname, kind="artifact", source=str(src), labels=entity_labels)',
         "",
         "",
         "_verify()  # abort import if handlers are stale",
@@ -169,7 +191,30 @@ def _gen_handlers(pipeline, fp: str) -> str:
         module = step.__name__
         lines.append("")
 
-        if isinstance(outputs, list) and len(outputs) == 0:
+        if i == 0:
+            lines += [
+                f"# Step {i}: {module}",
+                "# Always runs. When resuming (start_step > 1) it also restores on the shared",
+                "# volume every output of steps 1..start_step-1, so later steps find their inputs.",
+                f"def {fn}(",
+                '    context: "Context",',
+                "    labels: list[str] | str | None = None,",
+                "    start_step: int | str = 0,",
+                ") -> None:",
+                f'    context.logger.info("Executing: {module}")',
+                f'    _exec_main("{module}")',
+                "    start = int(start_step)",
+                "    if start > 1:",
+                "        from bdt_mobility.extraction.pipeline import PIPELINE",
+                "        from bdt_mobility.extraction.platform.restore import restore_outputs",
+                "        tags = _as_labels(labels)",
+                "        if not tags:",
+                '            raise ValueError("Resuming (start_step > 1) requires the data label to restore outputs")',
+                '        context.logger.info(f"Resuming from step {start}: restoring outputs of steps 1..{start - 1} labelled {tags[0]!r}")',
+                "        restore_outputs(PIPELINE[1:start], tags[0], strict=True)",
+            ]
+
+        elif isinstance(outputs, list) and len(outputs) == 0:
             lines += [
                 f"# Step {i}: {module}",
                 f'def {fn}(context: "Context", labels: list[str] | str | None = None) -> None:',
@@ -189,13 +234,10 @@ def _gen_handlers(pipeline, fp: str) -> str:
                 ") -> None:",
                 f'    context.logger.info("Executing: {module}")',
                 f'    _exec_main("{module}")',
+                "    entity_labels = _as_labels(labels)",
             ]
-            var_names = []
-            for j, out in enumerate(outputs):
-                var = f"d{j + 1}"
-                var_names.append(var)
-                lines.append(f"    {var} = {_log_call('project', out)}")
-            lines.append(f"    _tag_list([{', '.join(var_names)}], labels)")
+            for out in outputs:
+                lines.append(f"    {_log_call('project', out)}")
 
         elif isinstance(outputs, DynamicPlatformOutputs):
             log_fn = "log_artifact" if outputs.kind == "artifact" else "log_dataitem"
@@ -209,11 +251,10 @@ def _gen_handlers(pipeline, fp: str) -> str:
                 ") -> None:",
                 f'    context.logger.info("Executing: {module}")',
                 f'    names = _exec_main("{module}")',
-                "    dataitems = []",
+                "    entity_labels = _as_labels(labels)",
                 "    for name, path in names:",
-                f'        d = project.{log_fn}(name, kind={outputs.kind!r}, source=str(path))',
-                "        dataitems.append(d)",
-                "    _tag_list(dataitems, labels)",
+                f'        project.{log_fn}(name, kind={outputs.kind!r}, source=str(path), labels=entity_labels)',
+                f'    _log_manifest(project, "{module}", names, entity_labels)',
             ]
 
     lines.append("")
@@ -223,6 +264,19 @@ def _gen_handlers(pipeline, fp: str) -> str:
 # ---------------------------------------------------------------------------
 # workflow.py
 # ---------------------------------------------------------------------------
+
+
+def _resume_block(s_vars: list[str]) -> list[str]:
+    """Lines that make steps 1..n skippable via start_step, and every step retryable."""
+    return [
+        "            # Step 0 always runs (raw inputs + restore of earlier outputs when resuming).",
+        "            # Steps 1..n with index < start_step are skipped. Argo treats a Skipped",
+        "            # dependency as satisfied, so the chain continues from start_step.",
+        f"            for i, s in enumerate([{', '.join(s_vars)}]):",
+        "                if i > 0:",
+        '                    s.when = "{{workflow.parameters.start_step}} <= " + str(i)',
+        "                s.template.retry_strategy = RETRY_STRATEGY",
+    ]
 
 
 def _gen_workflow(pipeline, fp: str) -> str:
@@ -238,9 +292,17 @@ def _gen_workflow(pipeline, fp: str) -> str:
         "from __future__ import annotations",
         "",
         "from digitalhub_runtime_hera.dsl import step",
-        "from hera.workflows import DAG, Parameter, Workflow",
+        "from hera.workflows import DAG, Parameter, RetryStrategy, Workflow",
+        "from hera.workflows.models import Backoff",
         "",
         f'_FINGERPRINT = "{fp}"',
+        "",
+        "# Retry a step whose pod dies (eviction, node loss, OOM...) before failing the workflow.",
+        "RETRY_STRATEGY = RetryStrategy(",
+        '    limit="2",',
+        '    retry_policy="Always",',
+        '    backoff=Backoff(duration="1m", factor="2"),',
+        ")",
         "",
         "common_template = dict(",
         '    action="job",',
@@ -248,8 +310,10 @@ def _gen_workflow(pipeline, fp: str) -> str:
         "    envs=[",
         '        {"name": "PYTHONPATH", "value": "$PYTHONPATH:."},',
         '        {"name": "BDT_DATA_ROOT", "value": "/mnt/data"},',
+        "        # Same value as the entity labels: data dir and label stay in sync.",
+        '        {"name": "BDT_DATA_TAG", "value": "{{workflow.parameters.labels}}"},',
         "    ],",
-        '    resources={"mem": "16Gi", "cpu": "3", "disk": "10Gi"},',
+        '    resources={"mem": "24Gi", "cpu": "3", "disk": "10Gi"},',
         "    parameters={",
         '        "labels": "{{workflow.parameters.labels}}",',
         "    },",
@@ -257,15 +321,29 @@ def _gen_workflow(pipeline, fp: str) -> str:
         "",
         "",
         "def pipeline():",
-        '    with Workflow(entrypoint="dag", arguments=Parameter(name="labels")) as w:',
+        "    with Workflow(",
+        '        entrypoint="dag",',
+        "        arguments=[",
+        '            Parameter(name="labels"),',
+        "            # Index of the first step to run: earlier steps are skipped (resume after a crash).",
+        '            Parameter(name="start_step", value="0"),',
+        "        ],",
+        "    ) as w:",
         '        with DAG(name="dag"):',
     ]
 
-    for i in range(n):
+    # Step 0 also receives start_step, to know which earlier outputs to restore.
+    lines.append(
+        f'            {s_vars[0]} = step(function="{_dh_name(0)}", template={{'
+        '**common_template, "parameters": {**common_template["parameters"], '
+        '"start_step": "{{workflow.parameters.start_step}}"}})'
+    )
+    for i in range(1, n):
         lines.append(
             f'            {s_vars[i]} = step(function="{_dh_name(i)}", template=common_template)'
         )
 
+    lines += _resume_block(s_vars)
     lines.append("            (")
     lines.append(f"                {s_vars[0]}")
     for var in s_vars[1:]:
@@ -292,9 +370,15 @@ def _gen_ingest(pipeline, fp: str) -> str:
         "",
         f"Fingerprint: {fp}",
         '"""',
+        "import os",
         "from pathlib import Path",
         "import digitalhub as dh",
         "from bdt_mobility.extraction.config import PROJECT_NAME, TAG_GITHUB",
+        "",
+        "# Resume after a crash: BDT_START_STEP=N skips steps 1..N-1 (data on the shared volume is reused).",
+        'START_STEP = int(os.environ.get("BDT_START_STEP", "0"))',
+        f"if not 0 <= START_STEP < {len(pipeline)}:",
+        f'    raise ValueError(f"BDT_START_STEP must be in [0, {len(pipeline) - 1}], got {{START_STEP}}")',
         "",
         "project = dh.get_project(PROJECT_NAME)",
         "",
@@ -355,7 +439,7 @@ def _gen_ingest(pipeline, fp: str) -> str:
         "    ],",
         '    secrets=["GIT_TOKEN"],',
         "    wait=True,",
-        '    parameters={"labels": "data-ingestion"},',
+        f'    parameters={{"labels": {DATA_TAG!r}, "start_step": str(START_STEP)}},',
         ")",
         "",
     ]
