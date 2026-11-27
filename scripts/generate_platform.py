@@ -313,7 +313,7 @@ def _gen_workflow(pipeline, fp: str) -> str:
         "        # Same value as the entity labels: data dir and label stay in sync.",
         '        {"name": "BDT_DATA_TAG", "value": "{{workflow.parameters.labels}}"},',
         "    ],",
-        '    resources={"mem": "16Gi", "cpu": "3", "disk": "10Gi"},',
+        '    resources={"mem": "24Gi", "cpu": "3", "disk": "10Gi"},',
         "    parameters={",
         '        "labels": "{{workflow.parameters.labels}}",',
         "    },",

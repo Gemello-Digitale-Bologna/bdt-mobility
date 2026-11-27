@@ -27,7 +27,7 @@ common_template = dict(
         # Same value as the entity labels: data dir and label stay in sync.
         {"name": "BDT_DATA_TAG", "value": "{{workflow.parameters.labels}}"},
     ],
-    resources={"mem": "16Gi", "cpu": "3", "disk": "10Gi"},
+    resources={"mem": "24Gi", "cpu": "3", "disk": "10Gi"},
     parameters={
         "labels": "{{workflow.parameters.labels}}",
     },
@@ -59,8 +59,7 @@ def pipeline():
             S_12 = step(function="data-ingestion-step-12", template=common_template)
             S_13 = step(function="data-ingestion-step-13", template=common_template)
             S_14 = step(function="data-ingestion-step-14", template=common_template)
-            # Manual override (needs more RAM) — re-apply after regeneration until per-step resources are supported.
-            S_15 = step(function="data-ingestion-step-15", template={**common_template, "resources": {"mem": "24Gi", "cpu": "3", "disk": "10Gi"}})
+            S_15 = step(function="data-ingestion-step-15", template=common_template)
             S_16 = step(function="data-ingestion-step-16", template=common_template)
             S_17 = step(function="data-ingestion-step-17", template=common_template)
             S_18 = step(function="data-ingestion-step-18", template=common_template)
